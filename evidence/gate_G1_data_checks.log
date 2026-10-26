@@ -1,0 +1,23 @@
+﻿C-01: PASS | size=12292543 sha256=e03a258ebd7b1e2591b09862aab65d3dcde9c300744d800aa1fbaf374b7c2340 physical_lines=152410
+ANOMALY blank_lines: 0 []
+ANOMALY text_missing_or_None: 0 []
+ANOMALY text_non_string: 0 []
+ANOMALY text_too_short_after_strip: 1170 [46, 367, 415, 514, 1130, 1234, 1352, 2033, 2089, 2143]
+ANOMALY title_non_string: 0 []
+ANOMALY rating_outside_1_5: 0 []
+rating python types: {'float': 152410}
+rating values: {'1.0': 12326, '2.0': 1873, '3.0': 3271, '4.0': 6692, '5.0': 128248}
+survivors: 151240 last_original_row: 152410 last_filtered_index: 151239
+original_row gap histogram (top 10): [(1, 150181), (2, 975), (3, 66), (4, 11), (5, 3), (7, 1), (8, 1), (6, 1)]
+zip sha256: 1e827e0f1d0dd673c677c2db9a3b81e4b5fb9d011ca3585a68423735044fa699
+C-02: PASS | train: rebuilt=900 zip=900 equal=True; val: rebuilt=300 zip=300 equal=True; test: rebuilt=300 zip=300 equal=True
+C-02b: PASS | title/text/rating/label/original_row equal by id; train: records_with_field_mismatch=0; val: records_with_field_mismatch=0; test: records_with_field_mismatch=0
+C-03: PASS | mismatches over zip+rebuilt rows: 0
+C-04: PASS | ranges {'train': (1000, 19999), 'val': (20000, 29999), 'test': (30000, 39999)}
+C-05: PASS | train order equal=True; first 5 ids rebuilt=[2114, 5555, 6660, 11005, 4447] zip=[2114, 5555, 6660, 11005, 4447]
+C-06: PASS | test: zip ids equal first-100-per-class ids = True
+C-07: PASS | val: zip ids equal first-100-per-class ids = True (static no-val-read scan is a notebook check, not done here)
+C-08: PASS | train/zip: n=900 {'NEUTRAL': 300, 'POSITIVE': 300, 'NEGATIVE': 300}; train/rebuilt: n=900 {'NEUTRAL': 300, 'POSITIVE': 300, 'NEGATIVE': 300}; val/zip: n=300 {'POSITIVE': 100, 'NEUTRAL': 100, 'NEGATIVE': 100}; val/rebuilt: n=300 {'POSITIVE': 100, 'NEGATIVE': 100, 'NEUTRAL': 100}; test/zip: n=300 {'POSITIVE': 100, 'NEUTRAL': 100, 'NEGATIVE': 100}; test/rebuilt: n=300 {'POSITIVE': 100, 'NEGATIVE': 100, 'NEUTRAL': 100}
+C-09: PASS | filtered_index and original_row unique within each set (zip and rebuilt)
+C-10: PASS | filtered_index overlaps {'train&val': 0, 'train&test': 0, 'val&test': 0}; original_row overlaps {'train&val': 0, 'train&test': 0, 'val&test': 0}
+FAILED: none
