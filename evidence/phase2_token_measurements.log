@@ -1,0 +1,71 @@
+﻿
+=== qwen3-4b: unsloth/Qwen3-4B-unsloth-bnb-4bit
+chat_template sha256: 96fd16d36fb08526 | len 4673
+template uses strftime_now: False | mentions enable_thinking: True
+eos_token: <|im_end|> | pad_token: <|vision_pad|> | padding_side: left
+prompt is prefix of full: True
+rendered tail after generation prompt: '<think>\n\n</think>\n\nNEUTRAL<|im_end|>\n'
+generation prompt tail: 'no explanation.\n\nReview title: t\nReview text: x<|im_end|>\n<|im_start|>assistant\n'
+  POSITIVE: bare tokens=2; assistant span incl. end-of-turn tokens=8
+  NEUTRAL: bare tokens=3; assistant span incl. end-of-turn tokens=9
+  NEGATIVE: bare tokens=2; assistant span incl. end-of-turn tokens=8
+train rendered length (tokens), n=900: min=78 median=100.5 p95=193 p99=277 max=383
+train rows over 512 / 1024 / 2048 tokens: 0 0 0
+
+=== llama3.2-3b: unsloth/Llama-3.2-3B-Instruct-bnb-4bit
+chat_template sha256: 5816fce10444e03c | len 3827
+template uses strftime_now: True | mentions enable_thinking: False
+eos_token: <|eot_id|> | pad_token: <|finetune_right_pad_id|> | padding_side: left
+prompt is prefix of full: True
+rendered tail after generation prompt: 'NEUTRAL<|eot_id|>'
+generation prompt tail: 'title: t\nReview text: x<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n'
+  POSITIVE: bare tokens=2; assistant span incl. end-of-turn tokens=3
+  NEUTRAL: bare tokens=3; assistant span incl. end-of-turn tokens=4
+  NEGATIVE: bare tokens=2; assistant span incl. end-of-turn tokens=3
+train rendered length (tokens), n=900: min=95 median=117.0 p95=209 p99=294 max=400
+train rows over 512 / 1024 / 2048 tokens: 0 0 0
+
+=== phi4-mini: unsloth/Phi-4-mini-instruct-unsloth-bnb-4bit
+chat_template sha256: 46bcd040271c497e | len 398
+template uses strftime_now: False | mentions enable_thinking: False
+eos_token: <|end|> | pad_token: <｜PAD▁TOKEN｜> | padding_side: left
+prompt is prefix of full: True
+rendered tail after generation prompt: 'NEUTRAL<|end|>'
+generation prompt tail: 'ly one word, no explanation.\n\nReview title: t\nReview text: x<|end|><|assistant|>'
+  POSITIVE: bare tokens=2; assistant span incl. end-of-turn tokens=3
+  NEUTRAL: bare tokens=3; assistant span incl. end-of-turn tokens=4
+  NEGATIVE: bare tokens=2; assistant span incl. end-of-turn tokens=3
+train rendered length (tokens), n=900: min=65 median=87.0 p95=177 p99=257 max=365
+train rows over 512 / 1024 / 2048 tokens: 0 0 0
+
+=== gemma3-4b: unsloth/gemma-3-4b-it-unsloth-bnb-4bit
+chat_template sha256: 7de1c58e208eda46 | len 1532
+template uses strftime_now: False | mentions enable_thinking: False
+eos_token: <end_of_turn> | pad_token: <pad> | padding_side: left
+prompt is prefix of full: True
+rendered tail after generation prompt: 'NEUTRAL<end_of_turn>\n'
+generation prompt tail: ' explanation.\n\nReview title: t\nReview text: x<end_of_turn>\n<start_of_turn>model\n'
+  POSITIVE: bare tokens=1; assistant span incl. end-of-turn tokens=3
+  NEUTRAL: bare tokens=2; assistant span incl. end-of-turn tokens=4
+  NEGATIVE: bare tokens=1; assistant span incl. end-of-turn tokens=3
+train rendered length (tokens), n=900: min=70 median=93.0 p95=185 p99=270 max=376
+train rows over 512 / 1024 / 2048 tokens: 0 0 0
+
+=== qwen3-4b enable_thinking=False: unsloth/Qwen3-4B-unsloth-bnb-4bit
+chat_template sha256: 96fd16d36fb08526 | len 4673
+template uses strftime_now: False | mentions enable_thinking: True
+eos_token: <|im_end|> | pad_token: <|vision_pad|> | padding_side: left
+prompt is prefix of full: True
+rendered tail after generation prompt: 'NEUTRAL<|im_end|>\n'
+generation prompt tail: 'view title: t\nReview text: x<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n'
+  POSITIVE: bare tokens=2; assistant span incl. end-of-turn tokens=4
+  NEUTRAL: bare tokens=3; assistant span incl. end-of-turn tokens=5
+  NEGATIVE: bare tokens=2; assistant span incl. end-of-turn tokens=4
+train rendered length (tokens), n=900: min=78 median=100.5 p95=193 p99=277 max=383
+train rows over 512 / 1024 / 2048 tokens: 0 0 0
+
+=== hosted tokenizer Qwen/Qwen3.6-35B-A3B
+  POSITIVE: bare tokens=2
+  NEUTRAL: bare tokens=3
+  NEGATIVE: bare tokens=2
+  eos: <|im_end|>

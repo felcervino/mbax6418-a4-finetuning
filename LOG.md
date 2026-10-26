@@ -83,3 +83,17 @@
 - data-auditor spawned (independent re-derivation, stdlib only, no reuse of my code). Result pending.
 - data-auditor (independent stdlib rebuild): all checks PASS, no surprises; transcribed to evidence/gate_G1_audit.md. Spot-check sheet for Felipe: evidence/gate_G1_spotcheck.md. G1 Gate Report: evidence/gate_G1_report.md. STOP, awaiting GO G1. Nothing committed.
 - G1 PASSED on "GO G1" (2026-10-26). Commit pending Felipe's OK on status and message.
+- G1 commit c17c3f4 (16 files). No remote, not pushed. Next: Phase 2 decisions, after /clear.
+
+## Phase 2 session (2026-10-26, same session as Phase 1, Sonnet 5.5, Felipe asked to keep going)
+- Unsloth docs fetched via WebFetch (small-model summaries, no page dates): fine-tuning guide, LoRA hyperparameters guide, model catalog, requirements, phi-4 tutorial. Gaps: optimizer, T4 flags, Phi-4-mini notes not stated; not guessed.
+- Assignment 1 repo read (public, felcervino/amazon-gift-cards-sentiment, src/three_class_prompt.py and parser only): JSON-output prompt with delimiters and NEUTRAL definition. Compared in DECISIONS.md D-01.
+- HF API metadata for candidates read directly (licenses, params, gating). Local venv gained transformers 5.20.2 (tokenizers 0.23.3, jinja2 3.1.6, huggingface_hub 2.3.0).
+- tools/phase2_tokens.py -> evidence/phase2_token_measurements.log: train-only, 900 rows, longest rendered example 365 to 400 tokens across 4 candidates; label spans 3 to 4 tokens (Phi/Llama/Gemma); Llama 3.2 template injects the run date (verified: Today Date 26 Oct 2026, changes with date_string); Qwen3 default generation prompt lacks the empty think block the training render adds.
+- tools/phase2_shortlist.py -> evidence/phase2_fewshot_shortlist.md (RNG 20261026) and evidence/phase2_training_examples_20.md (RNG 20261027, 7/7/6, Phi-4-mini template, provisional wording). Train rows only; val and test not read.
+- DECISIONS.md: Phase 2 proposals appended (D-01..D-05, DEC-02, DEC-05, training settings). All pending Felipe. Nothing frozen, nothing trained, no Colab use.
+- Felipe accepted all Phase 2 recommendations (D-01, D-02, D-04, D-05 Phi-4-mini by original id, DEC-02, DEC-05 a+b, training settings). D-03 few-shot picks pending his reading of evidence/phase2_fewshot_shortlist.md; he also still needs to read evidence/phase2_training_examples_20.md. Logged in DECISIONS.md. G2 not yet reportable.
+- D-03: Felipe replied 'use suggested' (no ids). Recorded as a PROPOSED set in DECISIONS.md (first 2 per class in shortlist order, order RNG 20261028), pending his explicit confirmation after reading the texts.
+- D-03 APPROVED by Felipe: k=6, ids 13547, 16202, 11866, 2749, 9272, 9440 in that order. All in train, none in test (quick check). Felipe has not yet confirmed reading the 20 training examples.
+- G2 Gate Report written: evidence/gate_G2_report.md. STOP, awaiting GO G2 and Felipe's confirmation that he read the 20 training examples.
+- G2 PASSED on 'GO G2' (2026-10-26). Felipe confirmed he read the 20 training examples and found no problems. Commit pending Felipe's OK on status and message.
