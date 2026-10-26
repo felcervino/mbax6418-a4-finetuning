@@ -1,0 +1,13 @@
+# CLAUDE.md (MBAX 6418 Assignment 4)
+- Plan: PLAN.md. Requirements win from docs/assignment4.pdf. Read PLAN.md sections 0-2 and the ACTIVE phase only.
+- Session start: tail -n 40 LOG.md. After each gate: /clear.
+- Assume nothing. No versions, model sizes, VRAM or hyperparameters from memory: fetch or measure. Ask all questions in one batch.
+- Tag claims [VERIFIED: path] or [UNVERIFIED].
+- Gates: output the Gate Report, STOP, proceed only on "GO Gx". Freeze only on "FREEZE APPROVED <hash8>".
+- Validation set is reserved. Test labels are read only in S8 scoring. Prompt builders take (title, text) only.
+- Secrets never in files or outputs. Class key from Colab Secrets or env var CLASS_API_KEY.
+- No em dashes anywhere. Report prose is Felipe's, not yours.
+- Never commit without showing git status and message. Never push or submit to Canvas without explicit instruction.
+- Cap command output. Local pytest before Colab. Only the Colab MCP server is enabled.
+- Models: Sonnet 5.5 default, Opus 5.5 only for red-team at G3 and G8. Confirm availability with /model.
+- Log every decision in DECISIONS.md and every gate, seed, setting and run in LOG.md.

@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "colab-proxy-mcp": {
+      "command": "C:/Users/felce/AppData/Local/hermes/bin/uv.exe",
+      "args": ["run", "--directory", "C:/Users/felce/tools/colab-mcp", "colab-mcp"],
+      "timeout": 120000
+    }
+  }
+}
