@@ -8,7 +8,7 @@ import a4_helpers as h
 # T-08 prediction writer/reader round trip
 def test_t08_roundtrip(tmp_path):
     recs = []
-    raws = ["POSITIVE", " neutral\n", 'say "hi"\r\nnew\tline', "café — \U0001F600", "  ", ""]
+    raws = ["POSITIVE", " neutral\n", 'say "hi"\r\nnew\tline', "café – \U0001F600", "  ", ""]
     for i, raw in enumerate(raws):
         recs.append({"original_row": i + 1, "filtered_index": 30000 + i, "title": 'a "t"\nx',
                      "text": "line1\nline2  café", "reference_label": "POSITIVE",

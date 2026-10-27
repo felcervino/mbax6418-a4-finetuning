@@ -9,6 +9,10 @@ import json
 import math
 import os
 import random
+import re
+import time
+import urllib.error
+import urllib.request
 import zipfile
 
 LABELS = ["POSITIVE", "NEUTRAL", "NEGATIVE"]
@@ -260,3 +264,319 @@ def verify_adapter_zip(path):
     if sorted(names) != sorted(ADAPTER_FILES):
         raise ValueError(f"ZIP namelist {names} != {ADAPTER_FILES}")
     return names
+
+
+# ---------------------------------------------------------------- config hash
+
+def canonical_json(obj):
+    return json.dumps(obj, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+
+
+def sha256_hex(text):
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def config_hash(cfg):
+    return sha256_hex(canonical_json(cfg))
+
+
+def frozen_hash(cfg, keys):
+    return config_hash({k: cfg[k] for k in keys})
+
+
+def messages_hash(messages):
+    return config_hash(messages)
+
+
+# ---------------------------------------------------------------- hosted calls
+
+class TransportError(Exception):
+    pass
+
+
+def http_post_json(url, body, api_key, timeout):
+    """POST JSON. Returns (status, raw_text). Raises TransportError on network failure or timeout."""
+    req = urllib.request.Request(url, method="POST", data=json.dumps(body).encode("utf-8"),
+                                 headers={"Authorization": "Bearer " + api_key, "Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return r.status, r.read().decode("utf-8")
+    except urllib.error.HTTPError as e:
+        return e.code, e.read().decode("utf-8", "replace")
+    except (urllib.error.URLError, TimeoutError, ConnectionError, OSError) as e:
+        raise TransportError(f"{type(e).__name__}: {e}") from None
+
+
+def _hosted_body(messages, cfg):
+    return {"model": cfg["model"], "messages": messages, "temperature": cfg["temperature"],
+            "max_tokens": cfg["max_tokens"], **cfg.get("extra_body", {})}
+
+
+def call_hosted(messages, cfg, api_key, cache_dir, frozen, post=http_post_json, sleep=time.sleep):
+    """One hosted chat call. Retries only transport errors and HTTP 5xx; never retries on content.
+
+    The cache is keyed by sha256(frozen config hash + messages). First successful response wins.
+    The API key is used only for the request header and is never stored.
+    """
+    os.makedirs(cache_dir, exist_ok=True)
+    mh = messages_hash(messages)
+    key = sha256_hex(frozen + "\n" + mh)
+    path = os.path.join(cache_dir, key + ".json")
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
+            rec = json.load(f)
+        rec["from_cache"] = True
+        return rec
+    body = _hosted_body(messages, cfg)
+    url = cfg["base_url"].rstrip("/") + "/chat/completions"
+    attempts = 0
+    while True:
+        attempts += 1
+        t0 = time.perf_counter()
+        try:
+            status, raw = post(url, body, api_key, cfg["timeout_s"])
+        except TransportError:
+            if attempts > cfg["max_retries"]:
+                raise
+            sleep(cfg["retry_backoff_s"] * attempts)
+            continue
+        latency = time.perf_counter() - t0
+        if status >= 500:
+            if attempts > cfg["max_retries"]:
+                raise RuntimeError(f"HTTP {status} after {attempts} attempts")
+            sleep(cfg["retry_backoff_s"] * attempts)
+            continue
+        if status >= 400:
+            raise RuntimeError(f"HTTP {status}: {raw[:200]}")
+        break
+    resp = json.loads(raw)
+    choice = resp["choices"][0]
+    msg = choice["message"]
+    content = msg.get("content")
+    reasoning = msg.get("reasoning") or msg.get("reasoning_content")
+    usage = resp.get("usage") or {}
+    rtok = (usage.get("completion_tokens_details") or {}).get("reasoning_tokens") or 0
+    violations = []
+    if choice.get("finish_reason") != "stop":
+        violations.append(f"finish_reason:{choice.get('finish_reason')}")
+    if reasoning:
+        violations.append("reasoning_present")
+    if rtok:
+        violations.append(f"reasoning_tokens:{rtok}")
+    rec = {"key": key, "messages_sha256": mh, "request_body": body, "raw": raw, "latency_s": latency,
+           "http_status": status, "attempts": attempts, "content": content,
+           "finish_reason": choice.get("finish_reason"), "completion_tokens": usage.get("completion_tokens"),
+           "violations": violations, "prediction": parse_label(content), "from_cache": False}
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(rec, f, ensure_ascii=False)
+    os.replace(tmp, path)
+    return rec
+
+
+# ---------------------------------------------------------------- data and prompt checks (each raises)
+
+def fewshot_examples(train_by_id, ids):
+    out = []
+    for i in ids:
+        r = train_by_id[i]
+        out.append((r["title"], r["text"], r["reference_label"]))
+    return out
+
+
+def check_training_examples(examples, train_source, per_class=300):
+    """C-11: the objects handed to the trainer are exactly the prescribed training rows."""
+    src = {r["filtered_index"]: r for r in train_source}
+    ids = [e["filtered_index"] for e in examples]
+    assert len(ids) == len(set(ids)), "duplicate ids in training examples"
+    assert set(ids) == set(src), "training example ids differ from the prescribed training ids"
+    assert len(ids) == 3 * per_class, f"expected {3 * per_class} examples, got {len(ids)}"
+    counts = {c: 0 for c in LABELS}
+    for e in examples:
+        assert set(e.keys()) == {"filtered_index", "messages"}, f"unexpected fields {sorted(e.keys())}"
+        r = src[e["filtered_index"]]
+        expected = build_messages_fine_tuned(r["title"], r["text"], target=r["reference_label"])
+        assert e["messages"] == expected, f"messages differ from source for id {e['filtered_index']}"
+        counts[r["reference_label"]] += 1
+    assert all(v == per_class for v in counts.values()), f"class counts {counts}"
+    return counts
+
+
+def check_fewshot(ids, train_ids, reserved_ids, prompt_messages, train_by_id):
+    """C-12: few-shot ids are train rows, disjoint from reserved sets, and match the prompt turns."""
+    assert set(ids) <= set(train_ids), "few-shot id not in train"
+    assert not (set(ids) & set(reserved_ids)), "few-shot id overlaps reserved ids"
+    exs = fewshot_examples(train_by_id, ids)
+    turns = build_messages_few_shot("", "", exs)[1:-1]
+    assert len(prompt_messages) == len(turns) + 2, "prompt has the wrong number of turns"
+    assert prompt_messages[1:-1] == turns, "few-shot turns in the prompt differ from the train records"
+
+
+def check_one_prediction_per_id(preds_by_approach, test_ids):
+    """C-13."""
+    want = list(test_ids)
+    for name, recs in preds_by_approach.items():
+        got = [r["filtered_index"] for r in recs]
+        assert len(got) == len(set(got)), f"{name}: duplicate ids"
+        assert set(got) == set(want), f"{name}: id set differs from the test ids"
+        assert len(got) == len(want), f"{name}: wrong count {len(got)}"
+
+
+def check_instruction_identity(zero_shot, few_shot, fine_tuned):
+    """C-14b."""
+    hs = {instruction_hash(m) for m in (zero_shot, few_shot, fine_tuned)}
+    assert len(hs) == 1, "instruction text differs across approaches"
+
+
+def check_prompt_inputs(record, messages):
+    """C-15: a built prompt contains only title and text from the record."""
+    assert messages == build_messages_zero_shot(record["title"], record["text"]), "prompt is not a pure function of title and text"
+
+
+def check_no_truncation(lengths, max_seq_length):
+    """C-16."""
+    assert max(lengths) <= max_seq_length, f"longest example {max(lengths)} > max_seq_length {max_seq_length}"
+
+
+def check_predictions_records(records, test_ids):
+    """C-19."""
+    assert len(records) == len(test_ids), f"expected {len(test_ids)} rows, got {len(records)}"
+    assert len({r["filtered_index"] for r in records}) == len(records), "duplicate ids"
+    assert {r["filtered_index"] for r in records} == set(test_ids), "ids differ from the test ids"
+    for r in records:
+        assert list(r.keys()) == PREDICTION_FIELDS, f"field order {list(r.keys())}"
+        assert r["prediction"] in LABELS + ["INVALID"], f"bad prediction {r['prediction']!r}"
+        assert r["prediction"] == parse_label(r["raw_response"]), "prediction does not follow raw_response"
+        assert r["reference_label"] in LABELS
+
+
+def check_prompt_examples(records, expected_messages_by_id):
+    """C-20: 3 rows, one per class, messages equal the rebuilt prompt, no label inside messages."""
+    assert len(records) == 3, f"expected 3 rows, got {len(records)}"
+    assert sorted(r["reference_label"] for r in records) == sorted(LABELS), "not one row per class"
+    for r in records:
+        assert r["messages"] == expected_messages_by_id[r["filtered_index"]], "messages differ from rebuilt prompt"
+        assert all(m["role"] != "assistant" for m in r["messages"]), "assistant turn (label) inside messages"
+
+
+def scan_forbidden_tokens(sources, patterns):
+    """Static scan used for C-07 and the sealed test labels: raise if any pattern occurs."""
+    for i, src in enumerate(sources):
+        for pat in patterns:
+            m = re.search(pat, src)
+            assert not m, f"forbidden pattern {pat!r} in source {i} near: {src[max(0, m.start() - 30):m.end() + 30]!r}"
+
+
+# ---------------------------------------------------------------- in-notebook data checks C-02..C-10
+
+def read_zip_splits(zip_path):
+    with zipfile.ZipFile(zip_path) as z:
+        return {k: [json.loads(x) for x in z.read(f"{k}.jsonl").decode("utf-8").split("\n") if x.strip()]
+                for k in ("train", "val", "test")}
+
+
+def run_data_checks(survivors, splits, zipped):
+    """Port of tools/check_data.py (C-02..C-10). Returns a list of result dicts; raises on any failure."""
+    fields = ["original_row", "filtered_index", "title", "text", "rating", "reference_label"]
+    res = []
+
+    def check(cid, ok, detail):
+        res.append({"id": cid, "pass": bool(ok), "detail": detail})
+
+    check("C-02", all({(r["filtered_index"], r["original_row"]) for r in splits[k]} ==
+                      {(r["filtered_index"], r["original_row"]) for r in zipped[k]} for k in splits),
+          "(filtered_index, original_row) pairs equal the zip for train, val, test")
+    mism = 0
+    for k in splits:
+        zr = {r["filtered_index"]: r for r in zipped[k]}
+        for r in splits[k]:
+            z = zr[r["filtered_index"]]
+            mism += any(r[f] != z[f] for f in fields)
+    check("C-02b", mism == 0, f"records with a field mismatch vs zip: {mism}")
+    bad = sum(label_from_rating(r["rating"]) != r["reference_label"] for k in splits for r in zipped[k] + splits[k])
+    check("C-03", bad == 0, f"label/rating mismatches: {bad}")
+    rng = {"train": TRAIN_RANGE, "val": VAL_RANGE, "test": TEST_RANGE}
+    check("C-04", all(rng[k][0] <= r["filtered_index"] <= rng[k][1] for k in rng for r in zipped[k] + splits[k]),
+          f"ranges {rng}")
+    check("C-05", [r["filtered_index"] for r in splits["train"]] == [r["filtered_index"] for r in zipped["train"]],
+          "train records and ORDER reproduced from Random(43)")
+    for cid, k, (lo, hi) in (("C-06", "test", TEST_RANGE), ("C-07a", "val", VAL_RANGE)):
+        want = set()
+        for c in LABELS:
+            want |= set([s["filtered_index"] for s in survivors if lo <= s["filtered_index"] <= hi
+                         and s["reference_label"] == c][:EVAL_PER_CLASS])
+        check(cid, want == {r["filtered_index"] for r in zipped[k]}, f"{k} = first {EVAL_PER_CLASS} per class in file order")
+    ok = True
+    parts = []
+    for k, n in (("train", TRAIN_PER_CLASS), ("val", EVAL_PER_CLASS), ("test", EVAL_PER_CLASS)):
+        for name, src in (("zip", zipped[k]), ("rebuilt", splits[k])):
+            cnt = {c: sum(r["reference_label"] == c for r in src) for c in LABELS}
+            ok &= len(src) == 3 * n and all(v == n for v in cnt.values())
+            parts.append(f"{k}/{name}: n={len(src)} {cnt}")
+    check("C-08", ok, "; ".join(parts))
+    check("C-09", all(len({r["filtered_index"] for r in s}) == len(s) and len({r["original_row"] for r in s}) == len(s)
+                      for s in list(zipped.values()) + list(splits.values())), "unique ids within each set")
+    ids = {k: {r["filtered_index"] for r in splits[k]} for k in splits}
+    ov = {f"{a}&{b}": len(ids[a] & ids[b]) for a, b in (("train", "val"), ("train", "test"), ("val", "test"))}
+    check("C-10", all(v == 0 for v in ov.values()), f"overlaps {ov}")
+    failed = [r["id"] for r in res if not r["pass"]]
+    assert not failed, f"data checks failed: {failed}"
+    return res
+
+
+# ---------------------------------------------------------------- results helpers (S8)
+
+def best_approach(metrics_by_name):
+    """Highest macro-F1; tie-break higher balanced accuracy, then alphabetical name (declared in PLAN 4.6)."""
+    return sorted(metrics_by_name, key=lambda n: (-metrics_by_name[n]["macro_f1"],
+                                                  -metrics_by_name[n]["balanced_accuracy"], n))[0]
+
+
+def error_analysis(ref_by_id, zero_by_id, few_by_id, ft_by_id, n=10):
+    """First n ids (by filtered_index) in each list. Rule fixed in advance (DEC-07)."""
+    ids = sorted(ref_by_id)
+
+    def ok(pred, i):
+        return pred[i] == ref_by_id[i]
+
+    fixed = [i for i in ids if ok(ft_by_id, i) and not ok(zero_by_id, i) and not ok(few_by_id, i)]
+    broken = [i for i in ids if not ok(ft_by_id, i) and ok(zero_by_id, i) and ok(few_by_id, i)]
+    wrong_all = [i for i in ids if not ok(ft_by_id, i) and not ok(zero_by_id, i) and not ok(few_by_id, i)]
+    return {"fixed_by_ft": {"total": len(fixed), "ids": fixed[:n]},
+            "broken_by_ft": {"total": len(broken), "ids": broken[:n]},
+            "wrong_in_all": {"total": len(wrong_all), "ids": wrong_all[:n]}}
+
+
+def pairwise_mcnemar(ref_by_id, preds_by_name):
+    names = sorted(preds_by_name)
+    out = {}
+    for i, a in enumerate(names):
+        for b in names[i + 1:]:
+            out[f"{a} vs {b}"] = mcnemar_by_id(ref_by_id, preds_by_name[a], preds_by_name[b])
+    return out
+
+
+# ---------------------------------------------------------------- chat text for training, prefix check, canonical prompts
+
+def render_chat_text(tok, messages, strip_bos=True):
+    """Chat-template text for training. Some templates emit BOS as text while the tokenizer adds BOS again."""
+    t = tok.apply_chat_template(messages, tokenize=False)
+    if strip_bos and getattr(tok, "bos_token", None) and t.startswith(tok.bos_token):
+        t = t[len(tok.bos_token):]
+    return t
+
+
+def check_prompt_is_training_prefix(prompt_ids, train_ids):
+    """R-19: the token ids of the inference prompt are exactly the start of the training example's ids (single BOS)."""
+    prompt_ids, train_ids = list(prompt_ids), list(train_ids)
+    assert len(prompt_ids) < len(train_ids), "training example is not longer than its prompt"
+    assert train_ids[:len(prompt_ids)] == prompt_ids, "inference prompt tokens are not a prefix of the training tokens"
+
+
+def canonical_prompt_fingerprint(fewshot):
+    """Rendered prompts for fixed synthetic inputs plus the parser table, so any drift in the helpers changes the freeze hash."""
+    probe = ["POSITIVE", " neutral\n", "Positive.", "", "POSITIVE NEGATIVE", None]
+    return {"zero_shot": build_messages_zero_shot(" T ", "Line1\nLine2 "),
+            "few_shot": build_messages_few_shot(" T ", "Line1\nLine2 ", fewshot),
+            "fine_tuned": build_messages_fine_tuned(" T ", "Line1\nLine2 ", target="NEUTRAL"),
+            "parse_table": [parse_label(x) for x in probe]}

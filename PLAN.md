@@ -298,6 +298,9 @@ C-23 | Secret scan on notebook source and outputs, repo, and evidence files
 C-24 | Notebook: every code cell executed, zero error outputs
 C-25 | Restart-runtime reload reproduces the submitted predictions
 C-26 | Freeze hash matches the approved hash at S3 and in the final run
+C-27 | LoRA attached to every expected projection type in every decoder layer, no vision module; same count after reload (added in Phase 3: Phi-4-mini showed only 2 of 4 types adapted)
+C-28 | Hub revisions of the base model repositories equal the revisions recorded in CONFIG (added after the red-team audit)
+C-29 | Inference prompt token ids are the exact start of the training example ids (single BOS), checked after reload (added after the red-team audit)
 
 ### 8.2 Unit tests (local, before Colab)
 

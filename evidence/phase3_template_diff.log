@@ -1,0 +1,31 @@
+﻿microsoft/Phi-4-mini-instruct: template sha256 febf589225c9728a len 423 eos='<|endoftext|>' pad='<|endoftext|>' bos='<|endoftext|>'
+unsloth/Phi-4-mini-instruct: template sha256 46bcd040271c497e len 398 eos='<|end|>' pad='<｜PAD▁TOKEN｜>' bos='<|endoftext|>'
+unsloth/Phi-4-mini-instruct-unsloth-bnb-4bit: template sha256 46bcd040271c497e len 398 eos='<|end|>' pad='<｜PAD▁TOKEN｜>' bos='<|endoftext|>'
+
+--- unified diff: microsoft/Phi-4-mini-instruct -> unsloth/Phi-4-mini-instruct
+--- 
++++ 
+@@ -1 +1 @@
+-{% for message in messages %}{% if message['role'] == 'system' and 'tools' in message and message['tools'] is not none %}{{ '<|' + message['role'] + '|>' + message['content'] + '<|tool|>' + message['tools'] + '<|/tool|>' + '<|end|>' }}{% else %}{{ '<|' + message['role'] + '|>' + message['content'] 
++{% for message in messages %}{% if message['role'] == 'system' and 'tools' in message and message['tools'] is not none %}{{ '<|' + message['role'] + '|>' + message['content'] + '<|tool|>' + message['tools'] + '<|/tool|>' + '<|end|>' }}{% else %}{{ '<|' + message['role'] + '|>' + message['content'] 
+
+--- unified diff: microsoft/Phi-4-mini-instruct -> unsloth/Phi-4-mini-instruct-unsloth-bnb-4bit
+--- 
++++ 
+@@ -1 +1 @@
+-{% for message in messages %}{% if message['role'] == 'system' and 'tools' in message and message['tools'] is not none %}{{ '<|' + message['role'] + '|>' + message['content'] + '<|tool|>' + message['tools'] + '<|/tool|>' + '<|end|>' }}{% else %}{{ '<|' + message['role'] + '|>' + message['content'] 
++{% for message in messages %}{% if message['role'] == 'system' and 'tools' in message and message['tools'] is not none %}{{ '<|' + message['role'] + '|>' + message['content'] + '<|tool|>' + message['tools'] + '<|/tool|>' + '<|end|>' }}{% else %}{{ '<|' + message['role'] + '|>' + message['content'] 
+
+=== microsoft/Phi-4-mini-instruct
+train render      : '<|system|>You are an expert product review analyst. Determine the sentiment each Amazon review expresses.<|end|><|user|>Classify the sentiment of the review below as exactly one of: POSITIVE, NEUTRAL, NEGATIVE. Reply with exactly one word, no explanation.\n\nReview title: Five Stars\nReview text: Loved it.<|end|><|assistant|>POSITIVE<|end|><|endoftext|>'
+generation prompt : '<|system|>You are an expert product review analyst. Determine the sentiment each Amazon review expresses.<|end|><|user|>Classify the sentiment of the review below as exactly one of: POSITIVE, NEUTRAL, NEGATIVE. Reply with exactly one word, no explanation.\n\nReview title: Five Stars\nReview text: Loved it.<|end|><|assistant|>'
+
+=== unsloth/Phi-4-mini-instruct
+train render      : '<|system|>You are an expert product review analyst. Determine the sentiment each Amazon review expresses.<|end|><|user|>Classify the sentiment of the review below as exactly one of: POSITIVE, NEUTRAL, NEGATIVE. Reply with exactly one word, no explanation.\n\nReview title: Five Stars\nReview text: Loved it.<|end|><|assistant|>POSITIVE<|end|>'
+generation prompt : '<|system|>You are an expert product review analyst. Determine the sentiment each Amazon review expresses.<|end|><|user|>Classify the sentiment of the review below as exactly one of: POSITIVE, NEUTRAL, NEGATIVE. Reply with exactly one word, no explanation.\n\nReview title: Five Stars\nReview text: Loved it.<|end|><|assistant|>'
+
+=== unsloth/Phi-4-mini-instruct-unsloth-bnb-4bit
+train render      : '<|system|>You are an expert product review analyst. Determine the sentiment each Amazon review expresses.<|end|><|user|>Classify the sentiment of the review below as exactly one of: POSITIVE, NEUTRAL, NEGATIVE. Reply with exactly one word, no explanation.\n\nReview title: Five Stars\nReview text: Loved it.<|end|><|assistant|>POSITIVE<|end|>'
+generation prompt : '<|system|>You are an expert product review analyst. Determine the sentiment each Amazon review expresses.<|end|><|user|>Classify the sentiment of the review below as exactly one of: POSITIVE, NEUTRAL, NEGATIVE. Reply with exactly one word, no explanation.\n\nReview title: Five Stars\nReview text: Loved it.<|end|><|assistant|>'
+generation prompt identical to microsoft original for unsloth/Phi-4-mini-instruct: True
+generation prompt identical to microsoft original for unsloth/Phi-4-mini-instruct-unsloth-bnb-4bit: True

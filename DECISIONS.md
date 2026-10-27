@@ -114,3 +114,79 @@ Measured on the 900 train rows with each candidate's own chat template (evidence
 ### Anomalies found in Phase 2 work
 - 57 of 900 train texts contain "<br />"; 98 train titles are star-word titles (leakage, to flag in the report). Mojibake check: 0 train rows (an earlier suspicion was a console display artifact, verified with ascii()).
 - WebFetch summaries omitted several settings the PLAN needs (optimizer, T4 flags, Phi-4-mini notes): not guessed.
+
+## Phase 3 findings (2026-10-26)
+
+### DEC-08 Unsloth notebook reference and chat-template risk (information, needs Felipe's awareness)
+- Source read: unslothai/notebooks nb/Phi_4-Conversational.ipynb at repo commit bf2a56f8 (2026-10-26), saved to the session scratchpad. There is NO Phi-4-mini notebook in that repo (only Phi-4 14B, Phi-3.5 mini, Phi-3 medium, Llama 3.2, Gemma 3, Qwen3). The 14B notebook is a reference for API shape only. [VERIFIED: scratchpad phi4nb.json]
+- API seen: FastLanguageModel.from_pretrained(model_name, max_seq_length, load_in_4bit), FastLanguageModel.get_peft_model(r=16, lora_alpha=16, lora_dropout=0, bias="none", use_gradient_checkpointing="unsloth", random_state=3407), SFTTrainer + SFTConfig (batch 2, accum 4, warmup_steps 5, lr 2e-4, optim "adamw_8bit", weight_decay 0.001, lr_scheduler_type "linear", seed 3407), train_on_responses_only(trainer) with no arguments, FastLanguageModel.for_inference(model), model.save_pretrained / tokenizer.save_pretrained. No explicit fp16/bf16 flags (dtype auto).
+- Conflicts with the accepted settings: weight decay 0.001 in the notebook vs 0.01 on the docs page; accumulation 4 vs 8. Accepted settings win (0.01, 8); optimizer takes the notebook value adamw_8bit. [Flag to Felipe at G3.]
+- RISK: the notebook replaces the tokenizer's chat template with Unsloth's get_chat_template(tokenizer, "phi-4"), which is the Phi-4 14B format and is NOT the Phi-4-mini template. PLAN 4.4 says never change the chat template. Plan: do NOT call get_chat_template; use the tokenizer's own template; assert the template hash equals the HF original at training and at reload (C-18); prove masking by decoding labels.
+
+### DEC-09 DEVIATION: Colab driven through Claude in Chrome, not the Colab MCP (2026-10-26, Felipe's choice)
+- Question: the Colab MCP server closed within 25 to 55 s of every successful connect (5 of 5 instances closed with no error line; details in LOG.md). PLAN Phase 0 says to stop and report options when the MCP cannot run cells.
+- Options given: A drive Colab via Claude in Chrome, B retry the MCP once more, C Felipe runs cells himself.
+- Felipe's choice: A. Claude may add cells, paste code, run them and read outputs in Felipe's Colab tab through Claude in Chrome. Claude must never read or type the API key. Allowed also: upload files to the runtime Files panel.
+- Method: the notebook source is built locally and uploaded as files (build/a4_finetune.ipynb, tools/colab_runner.py); a short cell runs notebook cells through the runner and long steps run in a background thread with log files. Notebook content is unchanged by this; the final submitted notebook must still be one complete top-to-bottom run (Phase 6), which Felipe can do with Run all, or Claude can do the same way.
+- Risk: typed code can be altered by the editor (auto-closing brackets), so only short commands are typed; all substantive code arrives by file upload.
+
+### DEC-10 Unsloth loads its own variant of the Phi-4-mini tokenizer (found by check C-18 on Colab, 2026-10-26)
+- Evidence [VERIFIED: evidence/phase3_template_diff.log, Colab cell8 AssertionError]: loading "microsoft/Phi-4-mini-instruct" through FastLanguageModel returned a tokenizer whose chat template differs from Microsoft's. Original: eos and pad <|endoftext|>, template appends <|endoftext|> after the last assistant turn. Unsloth mirror (unsloth/Phi-4-mini-instruct, same template as the bnb-4bit mirror): eos <|end|>, pad <|PAD_TOKEN|>-style token, no trailing <|endoftext|>. The generation prompt (system, user, <|assistant|>) is byte-identical for both. Vocabulary is the same.
+- Consequence: the training target ends "<|end|>" (Unsloth) vs "<|end|><|endoftext|>" (original). Inference prompts are unaffected. A grader loading Microsoft's tokenizer with the adapter would stop generation at <|endoftext|>, not <|end|>.
+- What I changed in the notebook (disclosed, not hidden): the C-18 assertion "template equals Microsoft original" was my own addition beyond the catalog (C-18 = fresh reload, extracted folder, template hash equals the TRAINING-time hash). It now records TEMPLATE_MATCHES_ORIGINAL and the eos/pad differences in the output and in the report facts; the train-equals-reload assertion stays. Training text is rendered with the tokenizer that is actually loaded and the same tokenizer is used at inference.
+- Options for Felipe: (a) accept Unsloth's tokenizer for training and inference and state the difference in the report (recommended: smallest departure from the approved path, consistent train and inference); (b) force Microsoft's tokenizer into the trainer and inference (needs eos handling by hand, more code, more risk); (c) switch the base load id to the Unsloth mirror id and record it, which makes adapter_config name the mirror (C-17 risk).
+- Felipe's choice: pending. Dry run continues with (a) because it only tests plumbing.
+
+### DEC-11 LoRA target modules do not exist in Phi-4-mini under the approved names (found in the Phase 3 smoke, 2026-10-26)
+- Evidence: Colab smoke reported 8,912,896 trainable parameters. That equals 32 layers x (o_proj 98,304 + down_proj 180,224) at rank 16, so only o_proj and down_proj were adapted. Module listing of layer 0 shows fused self_attn.qkv_proj, self_attn.o_proj, mlp.gate_up_proj, mlp.down_proj; there is no q_proj, k_proj, v_proj, gate_proj or up_proj. [VERIFIED: Colab cell output 16:39, transcribed in LOG.md]
+- The approved list (q, k, v, o, gate, up, down) therefore silently adapted only 2 of 4 projection types. A change of target names is needed to honor the approved intent (all attention and MLP projections).
+- Recommendation: target_modules = ["qkv_proj", "o_proj", "gate_up_proj", "down_proj"]. Expected trainable parameters at r=16: 32 x (131,072 + 98,304 + 311,296 + 180,224) = 23,068,672. New check C-27 asserts every target type is adapted in every decoder layer (also after reload).
+- Alternative: keep the two-module adapter (cheaper, weaker, not what was approved).
+- Felipe's choice: pending. The dry run is being repeated with the recommended names to measure memory and speed.
+
+### DEC-12 adapter_config base_model_name_or_path names the Unsloth mirror (found in the Phase 3 smoke, 2026-10-26)
+- Evidence: after loading microsoft/Phi-4-mini-instruct with FastLanguageModel and save_pretrained, adapter_config.json says base_model_name_or_path = "unsloth/Phi-4-mini-instruct-unsloth-bnb-4bit". The PDF requires the configuration to identify the original base model; PLAN 4.4/C-17 says not to hand-edit silently.
+- Options: (a) keep as written and say in the report that Unsloth loads and records its 4-bit mirror of the original model (risk: a strict reader may see a different id than microsoft/Phi-4-mini-instruct); (b) rewrite the field to "microsoft/Phi-4-mini-instruct" before zipping, openly logged here and in the notebook output, and prove the reload from the extracted ZIP still works (it does not read this field in our S6 path, because the base is loaded by explicit id); (c) ask the instructor.
+- Recommendation: (b), with both values printed in the notebook (original written by Unsloth, edited value) and C-17 asserting the edited value equals the loading id.
+- Felipe's choice: pending.
+
+### DEC-11 UPDATE (2026-10-26, 16:42): Unsloth cannot adapt Phi-4-mini's fused projections
+- Retest with target_modules ["qkv_proj","o_proj","gate_up_proj","down_proj"]: new check C-27 failed (it did its job): LoRA module types attached = ['down_proj','o_proj'] only. The PEFT target regex that Unsloth 2026.10.9 builds (printed from model.peft_config['default'].target_modules, 347 chars) contains only q_proj|k_proj|v_proj|o_proj|gate_proj|up_proj|down_proj, whatever names are passed. So with Unsloth's own get_peft_model, Phi-4-mini can only be adapted on o_proj and down_proj (8,912,896 trainable parameters at r=16). [VERIFIED: Colab cell output, transcribed in LOG.md]
+- Phi-4-mini now has three Unsloth-specific wrinkles: DEC-10 (Unsloth's tokenizer variant), DEC-11 (fused projections not adaptable), DEC-12 (mirror base id). None of them is an error in the pipeline; all are consequences of this model under this Unsloth version.
+- Options for Felipe:
+  (A) Switch the small model to one with standard projection names and re-run the dry run: Gemma 3 4B (the fallback already named in D-05; the Unsloth docs fetched gave its response-marker strings; multimodal checkpoint, gemma license) or Qwen3-4B (Apache-2.0; needs enable_thinking handled identically in training and inference). Costs one more dry run (about 15 minutes) and a new D-05 entry.
+  (B) Keep Phi-4-mini with o_proj and down_proj adapted only (8.9M trainable, about 0.4 percent of 3.8B). Cheapest, but weaker and different from the approved "all projections"; must be stated plainly in the report.
+  (C) Keep Phi-4-mini and wrap the Unsloth-loaded model with plain peft LoraConfig on the fused names. Not tested; risks conflicting with Unsloth's trainer patches and is a departure from "Unsloth QLoRA".
+- Recommendation: (A) with Gemma 3 4B first, because its marker strings are in the docs I read and its template has no date or thinking switch. Qwen3-4B second. I have not tested either on Colab yet [UNVERIFIED].
+- Felipe's choice: pending.
+
+### D-05 re-decided: small model is Gemma 3 4B (Felipe, 2026-10-26, after DEC-11)
+- Question: Phi-4-mini under Unsloth could adapt only o_proj and down_proj (DEC-11). Options were A switch, B keep two modules, C bypass.
+- Felipe's choice: A, Gemma 3 4B (Qwen3-4B fallback). Confirmed in chat after his first reply "Yes" did not name an option.
+- Evidence from the Unsloth Gemma 3 4B notebook (unslothai/notebooks, commit bf2a56f8, saved in the session scratchpad): FastModel.from_pretrained("unsloth/gemma-3-4b-it", load_in_4bit=True), FastModel.get_peft_model with finetune_vision_layers=False, finetune_language_layers=True, finetune_attention_modules=True, finetune_mlp_modules=True (no target_modules list), train_on_responses_only, training text built with the leading <bos> removed because the tokenizer adds it again. The notebook also calls get_chat_template(tokenizer, "gemma-3"); this notebook does NOT (tokenizer and template stay as shipped, per PLAN 4.4).
+- google/gemma-3-4b-it is gated (manual approval) so it cannot be loaded in Colab without a token; the ungated copy unsloth/gemma-3-4b-it is loaded and quantized on load. The adapter's recorded base id will therefore name that copy (DEC-12 now concerns this id, still pending; PDF wants "the original base model").
+- Superseded: DEC-10 (Phi tokenizer variant) and the fused-module part of DEC-11 no longer apply; the new checks (C-27 module coverage, C-11c single BOS, finite loss) stay.
+- Approved training settings carry over unchanged (r 16, alpha 16, lr 2e-4, wd 0.01, batch 2 x accum 8, 2 epochs, adamw_8bit, seed 3407). max_seq_length 512, max_new_tokens 8 (D-04) need re-measuring with Gemma's tokenizer in the dry run.
+
+### DEC-12 UPDATE (Gemma 3 4B run): adapter_config base id
+- The dry run recorded base_model_name_or_path = "unsloth/gemma-3-4b-it-unsloth-bnb-4bit" (Unsloth maps the loaded id unsloth/gemma-3-4b-it to its 4-bit mirror). google/gemma-3-4b-it is gated, so a plain Hugging Face load of the original needs a license-accepted token.
+- Options: (a) keep the id Unsloth wrote and say so in the report; (b) rewrite the field to "unsloth/gemma-3-4b-it" (the id the notebook loads) or "google/gemma-3-4b-it" (the original), openly logged, with the reload still proven from the extracted ZIP; (c) ask the instructor which id satisfies "original base model".
+- Recommendation: (b) with "google/gemma-3-4b-it" only if Felipe confirms the instructor accepts the gated id, otherwise (a). Not decided.
+- Felipe's choice (2026-10-26): (a) keep the id Unsloth writes, unsloth/gemma-3-4b-it-unsloth-bnb-4bit. CONFIG: adapter_base_id_override None, expected_adapter_base_id equal to that id, asserted by C-17 and frozen. The report must state that Unsloth records its 4-bit copy of the original weights and that google/gemma-3-4b-it is gated.
+
+### G3 red-team findings and what was done (2026-10-26, red-team agent, Opus; report summarized here, not saved verbatim)
+- P0 DEC-12 open (base id in adapter_config): C-17 now asserts the id equals CONFIG expected_adapter_base_id (frozen) and supports an openly printed override; the value itself is still Felipe's decision.
+- P1 S6 not self-contained: fixed. S5c writes train_meta.json; S6a loads it, imports what it needs, frees training objects only if they exist, and S8/S10 read the meta file. A restart-then-S6 run is part of the dry-run re-test.
+- P1 freeze hash omitted helper behavior: the hash now includes the rendered zero-shot, few-shot and fine-tuned prompts for a fixed probe and the parser table (canonical_prompt_fingerprint); an empty approved hash can no longer pass.
+- P1 unpinned installs and unpinned model revisions: unsloth, unsloth_zoo, peft, bitsandbytes, accelerate pinned to the dry-run versions; hub revisions recorded and asserted (C-28). torchao and triton are left as the notebook recipe has them and are recorded.
+- P1 hosted cache lost on restart: with USE_DRIVE the cache lives on Drive. OPEN QUESTION for Felipe: which run counts as the hosted result (see below).
+- P1 BOS prefix only checked in training: C-29 added after reload.
+- P1 static scan failed open: every code cell now needs a section tag, and exec(, eval(, globals(), ZIP_PATH, test.jsonl, val.jsonl are forbidden outside S0 and S1.
+- P1 anchoring: the "small discordant counts" print and the title-leakage sentence were reworded to neutral statements.
+- P2 left as is, with reason: predictions and prompt files are assembled in S8a because they need the sealed labels; HTTP 4xx stops the run (infrastructure failure policy); the approved DEC-05 flip-rate test and the approved title-leakage analysis are still to be built; Run All with in-process pip is untested because the dry run used the harness.
+
+### Open question: which run produces the hosted results (needs Felipe)
+PLAN 8.4 says all four files come from one final top-to-bottom run, while Phase 5 runs the hosted predictions before Phase 6. Recommendation: do not run the hosted calls before the final run. Phase 5 is skipped as a separate run: the final notebook run (Phase 6) makes the hosted calls once, with the cache on Drive so a crash does not re-roll answers. The DEC-05 flip-rate measurement (30 TRAIN prompts x 3) is a separate, labelled cell.
+
+### Hosted-run policy (Felipe, 2026-10-26): final run only
+Answer to the open question above: option recommended. The hosted calls are made once, inside the final top-to-bottom run (Phase 6), with the cache on Drive. Phase 5 is not run as a separate hosted run. The DEC-05 flip-rate cell stays a separately labelled cell.
