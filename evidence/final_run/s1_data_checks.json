@@ -1,0 +1,52 @@
+[
+ {
+  "id": "C-02",
+  "pass": true,
+  "detail": "(filtered_index, original_row) pairs equal the zip for train, val, test"
+ },
+ {
+  "id": "C-02b",
+  "pass": true,
+  "detail": "records with a field mismatch vs zip: 0"
+ },
+ {
+  "id": "C-03",
+  "pass": true,
+  "detail": "label/rating mismatches: 0"
+ },
+ {
+  "id": "C-04",
+  "pass": true,
+  "detail": "ranges {'train': (1000, 19999), 'val': (20000, 29999), 'test': (30000, 39999)}"
+ },
+ {
+  "id": "C-05",
+  "pass": true,
+  "detail": "train records and ORDER reproduced from Random(43)"
+ },
+ {
+  "id": "C-06",
+  "pass": true,
+  "detail": "test = first 100 per class in file order"
+ },
+ {
+  "id": "C-07a",
+  "pass": true,
+  "detail": "val = first 100 per class in file order"
+ },
+ {
+  "id": "C-08",
+  "pass": true,
+  "detail": "train/zip: n=900 {'POSITIVE': 300, 'NEUTRAL': 300, 'NEGATIVE': 300}; train/rebuilt: n=900 {'POSITIVE': 300, 'NEUTRAL': 300, 'NEGATIVE': 300}; val/zip: n=300 {'POSITIVE': 100, 'NEUTRAL': 100, 'NEGATIVE': 100}; val/rebuilt: n=300 {'POSITIVE': 100, 'NEUTRAL': 100, 'NEGATIVE': 100}; test/zip: n=300 {'POSITIVE': 100, 'NEUTRAL': 100, 'NEGATIVE': 100}; test/rebuilt: n=300 {'POSITIVE': 100, 'NEUTRAL': 100, 'NEGATIVE': 100}"
+ },
+ {
+  "id": "C-09",
+  "pass": true,
+  "detail": "unique ids within each set"
+ },
+ {
+  "id": "C-10",
+  "pass": true,
+  "detail": "overlaps {'train&val': 0, 'train&test': 0, 'val&test': 0}"
+ }
+]

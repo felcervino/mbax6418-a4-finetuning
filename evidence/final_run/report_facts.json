@@ -1,0 +1,284 @@
+{
+ "mode": "final",
+ "gpu": "Tesla T4, 15360 MiB, 580.82.07",
+ "t4_tested_directly": true,
+ "hosted_model": "cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit (35B total, about 3B active)",
+ "small_model": "unsloth/gemma-3-4b-it",
+ "trainable_params": 29802496,
+ "total_params": 4329881968,
+ "lora_module_types": [
+  "down_proj",
+  "gate_proj",
+  "k_proj",
+  "o_proj",
+  "q_proj",
+  "up_proj",
+  "v_proj"
+ ],
+ "model_dtype": "torch.float16",
+ "fp16": false,
+ "bf16": false,
+ "hub_revisions": {
+  "unsloth/gemma-3-4b-it": "bf46152c47f5dd20b896357cb51abc4c03b8ee8c",
+  "unsloth/gemma-3-4b-it-unsloth-bnb-4bit": "316726ca0bd24aa323bfaf86e8a379ee1176d1fe"
+ },
+ "training_settings": {
+  "r": 16,
+  "lora_alpha": 16,
+  "lora_dropout": 0,
+  "bias": "none",
+  "finetune_vision_layers": false,
+  "finetune_language_layers": true,
+  "finetune_attention_modules": true,
+  "finetune_mlp_modules": true,
+  "expected_lora_modules": [
+   "q_proj",
+   "k_proj",
+   "v_proj",
+   "o_proj",
+   "gate_proj",
+   "up_proj",
+   "down_proj"
+  ],
+  "learning_rate": 0.0002,
+  "weight_decay": 0.01,
+  "lr_scheduler_type": "linear",
+  "warmup_steps": 5,
+  "per_device_train_batch_size": 2,
+  "gradient_accumulation_steps": 8,
+  "num_train_epochs": 2,
+  "optim": "adamw_8bit",
+  "seed": 3407,
+  "use_gradient_checkpointing": "unsloth",
+  "packing": false
+ },
+ "training_seconds": 678.8,
+ "generation_settings": {
+  "hosted": {
+   "temperature": 0,
+   "max_tokens": 8,
+   "extra_body": {
+    "chat_template_kwargs": {
+     "enable_thinking": false
+    }
+   }
+  },
+  "fine_tuned": {
+   "max_new_tokens": 8,
+   "batch_size": 1,
+   "do_sample": false,
+   "skip_special_tokens": true
+  }
+ },
+ "package_versions": {
+  "python": "3.13.16",
+  "torch": "2.11.0+cu130",
+  "transformers": "4.57.6",
+  "peft": "0.21.2",
+  "accelerate": "1.15.0",
+  "datasets": "4.3.0",
+  "trl": "0.22.2",
+  "bitsandbytes": "0.50.2",
+  "unsloth": "2026.10.9",
+  "unsloth_zoo": "2026.10.9",
+  "openai": "2.54.0",
+  "requests": "2.32.4",
+  "scikit-learn": "1.6.1",
+  "scipy": "1.16.3",
+  "statsmodels": "0.15.0",
+  "pandas": "2.2.3",
+  "numpy": "2.1.3",
+  "matplotlib": "3.10.0",
+  "safetensors": "0.8.0"
+ },
+ "frozen_hash": "8a1f06f40c4f3f273bd8149f7b4c25a9c0b20005ae5b5b435ae51be7a0e9e111",
+ "template_matches_hub": true,
+ "adapter_base_model_name_or_path": "unsloth/gemma-3-4b-it-unsloth-bnb-4bit",
+ "metrics": {
+  "zero_shot": {
+   "balanced_accuracy": 0.7466666666666667,
+   "macro_f1": 0.7173063291484344,
+   "invalid": 0
+  },
+  "few_shot": {
+   "balanced_accuracy": 0.7466666666666667,
+   "macro_f1": 0.7176615200808749,
+   "invalid": 0
+  },
+  "fine_tuned": {
+   "balanced_accuracy": 0.81,
+   "macro_f1": 0.8048853927888531,
+   "invalid": 0
+  }
+ },
+ "mcnemar": {
+  "few_shot vs fine_tuned": {
+   "b": 12,
+   "c": 31,
+   "p": 0.005401572654591291
+  },
+  "few_shot vs zero_shot": {
+   "b": 6,
+   "c": 6,
+   "p": 1.0
+  },
+  "fine_tuned vs zero_shot": {
+   "b": 34,
+   "c": 15,
+   "p": 0.009399241523873059
+  }
+ },
+ "hosted_flip_rate_train": {
+  "design": "3 back-to-back calls per TRAIN prompt in one run (short-term repeatability)",
+  "seed": 20261029,
+  "repeats": 3,
+  "by_approach": {
+   "zero_shot": {
+    "items": 30,
+    "repeats": 3,
+    "label_flips": 1,
+    "label_flip_ids": [
+     3863
+    ],
+    "label_flip_rate": 0.03333333333333333,
+    "raw_flips": 1,
+    "raw_flip_ids": [
+     3863
+    ],
+    "invalid_responses": 0,
+    "calls": 90,
+    "cache_hits": 0,
+    "calls_with_violations": 0,
+    "sum_latency_s": 27.452,
+    "mixed_session_ids": []
+   },
+   "few_shot": {
+    "items": 30,
+    "repeats": 3,
+    "label_flips": 0,
+    "label_flip_ids": [],
+    "label_flip_rate": 0.0,
+    "raw_flips": 0,
+    "raw_flip_ids": [],
+    "invalid_responses": 0,
+    "calls": 90,
+    "cache_hits": 0,
+    "calls_with_violations": 0,
+    "sum_latency_s": 29.044,
+    "mixed_session_ids": []
+   }
+  }
+ },
+ "star_word_titles": {
+  "n_star": 50,
+  "n_rest": 250,
+  "star_label_mix": {
+   "POSITIVE": 29,
+   "NEUTRAL": 18,
+   "NEGATIVE": 3
+  },
+  "rest_label_mix": {
+   "POSITIVE": 71,
+   "NEUTRAL": 82,
+   "NEGATIVE": 97
+  },
+  "by_approach": {
+   "few_shot": {
+    "star_correct": 42,
+    "star_accuracy": 0.84,
+    "rest_correct": 182,
+    "rest_accuracy": 0.728,
+    "per_class": {
+     "POSITIVE": {
+      "star_n": 29,
+      "star_correct": 29,
+      "star_recall": 1.0,
+      "rest_n": 71,
+      "rest_correct": 63,
+      "rest_recall": 0.8873239436619719
+     },
+     "NEUTRAL": {
+      "star_n": 18,
+      "star_correct": 10,
+      "star_recall": 0.5555555555555556,
+      "rest_n": 82,
+      "rest_correct": 25,
+      "rest_recall": 0.3048780487804878
+     },
+     "NEGATIVE": {
+      "star_n": 3,
+      "star_correct": 3,
+      "star_recall": 1.0,
+      "rest_n": 97,
+      "rest_correct": 94,
+      "rest_recall": 0.9690721649484536
+     }
+    }
+   },
+   "fine_tuned": {
+    "star_correct": 50,
+    "star_accuracy": 1.0,
+    "rest_correct": 193,
+    "rest_accuracy": 0.772,
+    "per_class": {
+     "POSITIVE": {
+      "star_n": 29,
+      "star_correct": 29,
+      "star_recall": 1.0,
+      "rest_n": 71,
+      "rest_correct": 64,
+      "rest_recall": 0.9014084507042254
+     },
+     "NEUTRAL": {
+      "star_n": 18,
+      "star_correct": 18,
+      "star_recall": 1.0,
+      "rest_n": 82,
+      "rest_correct": 45,
+      "rest_recall": 0.5487804878048781
+     },
+     "NEGATIVE": {
+      "star_n": 3,
+      "star_correct": 3,
+      "star_recall": 1.0,
+      "rest_n": 97,
+      "rest_correct": 84,
+      "rest_recall": 0.865979381443299
+     }
+    }
+   },
+   "zero_shot": {
+    "star_correct": 39,
+    "star_accuracy": 0.78,
+    "rest_correct": 185,
+    "rest_accuracy": 0.74,
+    "per_class": {
+     "POSITIVE": {
+      "star_n": 29,
+      "star_correct": 28,
+      "star_recall": 0.9655172413793104,
+      "rest_n": 71,
+      "rest_correct": 64,
+      "rest_recall": 0.9014084507042254
+     },
+     "NEUTRAL": {
+      "star_n": 18,
+      "star_correct": 8,
+      "star_recall": 0.4444444444444444,
+      "rest_n": 82,
+      "rest_correct": 27,
+      "rest_recall": 0.32926829268292684
+     },
+     "NEGATIVE": {
+      "star_n": 3,
+      "star_correct": 3,
+      "star_recall": 1.0,
+      "rest_n": 97,
+      "rest_correct": 94,
+      "rest_recall": 0.9690721649484536
+     }
+    }
+   }
+  }
+ }
+}
