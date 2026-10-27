@@ -13,6 +13,7 @@ import re
 import time
 import urllib.error
 import urllib.request
+import uuid
 import zipfile
 
 LABELS = ["POSITIVE", "NEUTRAL", "NEGATIVE"]
@@ -33,6 +34,8 @@ TEST_RANGE = (30000, 39999)
 TRAIN_PER_CLASS = 300
 EVAL_PER_CLASS = 100
 TRAIN_SEED = 43
+# One id per kernel start; stored with each hosted call so a resumed run shows which answers came from which session.
+SESSION_ID = uuid.uuid4().hex
 
 
 # ---------------------------------------------------------------- data
@@ -366,7 +369,8 @@ def call_hosted(messages, cfg, api_key, cache_dir, frozen, post=http_post_json, 
     rec = {"key": key, "messages_sha256": mh, "request_body": body, "raw": raw, "latency_s": latency,
            "http_status": status, "attempts": attempts, "content": content,
            "finish_reason": choice.get("finish_reason"), "completion_tokens": usage.get("completion_tokens"),
-           "violations": violations, "prediction": parse_label(content), "from_cache": False}
+           "violations": violations, "prediction": parse_label(content), "from_cache": False,
+           "session_id": SESSION_ID, "created_utc": time.time()}
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(rec, f, ensure_ascii=False)
@@ -545,6 +549,97 @@ def error_analysis(ref_by_id, zero_by_id, few_by_id, ft_by_id, n=10):
     return {"fixed_by_ft": {"total": len(fixed), "ids": fixed[:n]},
             "broken_by_ft": {"total": len(broken), "ids": broken[:n]},
             "wrong_in_all": {"total": len(wrong_all), "ids": wrong_all[:n]}}
+
+
+# Phase 2 rule (tools/phase2_shortlist.py), reused for the optional title-leakage analysis.
+STAR_TITLE = re.compile(r"^\s*(\w+\s+)?(\d|one|two|three|four|five)\s+stars?\b", re.I)
+
+
+def is_star_title(title):
+    return bool(STAR_TITLE.match(title or ""))
+
+
+def star_title_breakdown(ref_by_id, title_by_id, preds_by_name):
+    """Descriptive only: correct counts on star-word titles vs the other titles, overall and within each reference
+    class (the class mix differs between the two groups). INVALID counts as wrong. Never used to tune."""
+    ids = sorted(ref_by_id)
+    star = [i for i in ids if is_star_title(title_by_id[i])]
+    rest = [i for i in ids if not is_star_title(title_by_id[i])]
+
+    def mix(sub):
+        return {c: sum(ref_by_id[i] == c for i in sub) for c in LABELS}
+
+    def acc(pred, sub):
+        n_ok = sum(pred[i] == ref_by_id[i] for i in sub)
+        return n_ok, (n_ok / len(sub) if sub else None)
+
+    by = {}
+    for n in sorted(preds_by_name):
+        p = preds_by_name[n]
+        sc, sa = acc(p, star)
+        rc, ra = acc(p, rest)
+        per = {}
+        for c in LABELS:
+            s_c, r_c = [i for i in star if ref_by_id[i] == c], [i for i in rest if ref_by_id[i] == c]
+            (s_ok, s_rec), (r_ok, r_rec) = acc(p, s_c), acc(p, r_c)
+            per[c] = {"star_n": len(s_c), "star_correct": s_ok, "star_recall": s_rec,
+                      "rest_n": len(r_c), "rest_correct": r_ok, "rest_recall": r_rec}
+        by[n] = {"star_correct": sc, "star_accuracy": sa, "rest_correct": rc, "rest_accuracy": ra, "per_class": per}
+    return {"n_star": len(star), "n_rest": len(rest), "star_ids": star,
+            "star_label_mix": mix(star), "rest_label_mix": mix(rest), "by_approach": by}
+
+
+def flip_sample(train_rows, exclude_ids, per_class, seed):
+    """DEC-05: per_class TRAIN ids per class (exclusions removed), one RNG over classes in LABELS order, sorted output."""
+    rng = random.Random(seed)
+    excl = set(exclude_ids)
+    out = []
+    for c in LABELS:
+        pool = sorted(r["filtered_index"] for r in train_rows if r["reference_label"] == c and r["filtered_index"] not in excl)
+        assert len(pool) >= per_class, f"flip sample: only {len(pool)} {c} rows"
+        out += rng.sample(pool, per_class)
+    return sorted(out)
+
+
+def repeat_hosted(messages, cfg, api_key, cache_root, frozen, repeats, post=http_post_json, sleep=time.sleep):
+    """DEC-05: `repeats` independent calls for one prompt. Each repeat has its own cache folder, so the calls are
+    separate requests, while a restart resumes from saved responses instead of re-rolling them."""
+    return [call_hosted(messages, cfg, api_key, os.path.join(cache_root, f"rep{k}"), frozen, post=post, sleep=sleep)
+            for k in range(1, repeats + 1)]
+
+
+def flip_rate(reps_by_id):
+    """reps_by_id: id -> list of (prediction, raw content), one per repeat. A flip = not all repeats identical."""
+    counts = {len(v) for v in reps_by_id.values()}
+    assert len(counts) <= 1, f"uneven repeats: {counts}"
+    ids = sorted(reps_by_id)
+    label_flips = [i for i in ids if len({p for p, _ in reps_by_id[i]}) > 1]
+    raw_flips = [i for i in ids if len({r for _, r in reps_by_id[i]}) > 1]
+    return {"items": len(ids), "repeats": counts.pop() if counts else 0, "label_flips": len(label_flips),
+            "label_flip_ids": label_flips, "label_flip_rate": len(label_flips) / len(ids) if ids else None, "raw_flips": len(raw_flips), "raw_flip_ids": raw_flips,
+            "invalid_responses": sum(p == "INVALID" for v in reps_by_id.values() for p, _ in v)}
+
+
+def flip_summary(raw_records, approaches):
+    """DEC-05 result rebuilt from the saved flip records (S4b writes them, S10 re-reads them after any restart).
+    mixed_session_ids: prompts whose repeats were answered in different kernel sessions (a resumed run)."""
+    out = {}
+    for a in approaches:
+        recs = [r for r in raw_records if r["approach"] == a]
+        ids = sorted({r["filtered_index"] for r in recs})
+        reps, sessions = {}, {}
+        for i in ids:
+            rs = sorted((r for r in recs if r["filtered_index"] == i), key=lambda r: r["repeat"])
+            assert [r["repeat"] for r in rs] == list(range(1, len(rs) + 1)), f"{a} id {i}: repeats {[r['repeat'] for r in rs]}"
+            reps[i] = [(r["prediction"], r["raw_response"]) for r in rs]
+            sessions[i] = {r["session_id"] for r in rs}
+        res = flip_rate(reps)
+        res.update({"calls": len(recs), "cache_hits": sum(bool(r["from_cache"]) for r in recs),
+                    "calls_with_violations": sum(bool(r["violations"]) for r in recs),
+                    "sum_latency_s": round(sum(r["latency_s"] for r in recs), 3),
+                    "mixed_session_ids": [i for i in ids if len(sessions[i]) > 1]})
+        out[a] = res
+    return out
 
 
 def pairwise_mcnemar(ref_by_id, preds_by_name):

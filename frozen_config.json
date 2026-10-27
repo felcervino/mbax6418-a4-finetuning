@@ -1,0 +1,210 @@
+{
+ "canonical_prompts": {
+  "few_shot": [
+   {
+    "content": "You are an expert product review analyst. Determine the sentiment each Amazon review expresses.",
+    "role": "system"
+   },
+   {
+    "content": "Classify the sentiment of the review below as exactly one of: POSITIVE, NEUTRAL, NEGATIVE. Reply with exactly one word, no explanation.\n\nReview title: Completed Reload, but was confused\nReview text: I completed the Amazon Gift Card reload by transferring funds from 5 individual electronic gift cards.  The successful transfer notifications were not clear, resulting in 5 successful transfers and 7 unsuccessful transfers due to repeated transfer attempts after the first successful transfer on each card.",
+    "role": "user"
+   },
+   {
+    "content": "POSITIVE",
+    "role": "assistant"
+   },
+   {
+    "content": "Classify the sentiment of the review below as exactly one of: POSITIVE, NEUTRAL, NEGATIVE. Reply with exactly one word, no explanation.\n\nReview title: Nice gift card & box, but are they made from post-consumer recycled content? I don't know...\nReview text: Seemingly high quality plastic in a paperboard box. I give it three stars, as I couldn't find how much post-consumer recycled content was contained in the card and box.",
+    "role": "user"
+   },
+   {
+    "content": "NEUTRAL",
+    "role": "assistant"
+   },
+   {
+    "content": "Classify the sentiment of the review below as exactly one of: POSITIVE, NEUTRAL, NEGATIVE. Reply with exactly one word, no explanation.\n\nReview title: Could be packaged better.\nReview text: I've ordered this before. I love the cupcake tin, and it makes a cute holder for an Amazon birthday gift card but this time it has three dents in it. The first one was fine. Should be in a small box, not a mailer envelope.",
+    "role": "user"
+   },
+   {
+    "content": "NEUTRAL",
+    "role": "assistant"
+   },
+   {
+    "content": "Classify the sentiment of the review below as exactly one of: POSITIVE, NEUTRAL, NEGATIVE. Reply with exactly one word, no explanation.\n\nReview title: Convenient with multiple places you can use it!\nReview text: Shipping was quick and I love cute pink packaging🥰 Gifted to my mom for her birthday. I love that it gives you options where you can shop. Was initially glooming for just an ultra one but this gives her a bigger variety without me having to buy separate ones.",
+    "role": "user"
+   },
+   {
+    "content": "POSITIVE",
+    "role": "assistant"
+   },
+   {
+    "content": "Classify the sentiment of the review below as exactly one of: POSITIVE, NEUTRAL, NEGATIVE. Reply with exactly one word, no explanation.\n\nReview title: Wedding Gift Card\nReview text: Hi. I am curious as to know if for sure the recipient actually received the card. Never heard from her acknowledging receipt. Please ease my mind that it went through.<br /><br />Thank you.",
+    "role": "user"
+   },
+   {
+    "content": "NEGATIVE",
+    "role": "assistant"
+   },
+   {
+    "content": "Classify the sentiment of the review below as exactly one of: POSITIVE, NEUTRAL, NEGATIVE. Reply with exactly one word, no explanation.\n\nReview title: No more 2% back with reloads\nReview text: I used to get 2% bonus for reloading my gift card. I am very disappointed that Amazon got rid of that perk. Amazon gets worse and worse...not better. Lame<br />...",
+    "role": "user"
+   },
+   {
+    "content": "NEGATIVE",
+    "role": "assistant"
+   },
+   {
+    "content": "Classify the sentiment of the review below as exactly one of: POSITIVE, NEUTRAL, NEGATIVE. Reply with exactly one word, no explanation.\n\nReview title:  T \nReview text: Line1\nLine2 ",
+    "role": "user"
+   }
+  ],
+  "fine_tuned": [
+   {
+    "content": "You are an expert product review analyst. Determine the sentiment each Amazon review expresses.",
+    "role": "system"
+   },
+   {
+    "content": "Classify the sentiment of the review below as exactly one of: POSITIVE, NEUTRAL, NEGATIVE. Reply with exactly one word, no explanation.\n\nReview title:  T \nReview text: Line1\nLine2 ",
+    "role": "user"
+   },
+   {
+    "content": "NEUTRAL",
+    "role": "assistant"
+   }
+  ],
+  "parse_table": [
+   "POSITIVE",
+   "NEUTRAL",
+   "INVALID",
+   "INVALID",
+   "INVALID",
+   "INVALID"
+  ],
+  "zero_shot": [
+   {
+    "content": "You are an expert product review analyst. Determine the sentiment each Amazon review expresses.",
+    "role": "system"
+   },
+   {
+    "content": "Classify the sentiment of the review below as exactly one of: POSITIVE, NEUTRAL, NEGATIVE. Reply with exactly one word, no explanation.\n\nReview title:  T \nReview text: Line1\nLine2 ",
+    "role": "user"
+   }
+  ]
+ },
+ "fewshot_ids": [
+  13547,
+  16202,
+  11866,
+  2749,
+  9272,
+  9440
+ ],
+ "flip_ids": [
+  3863,
+  4004,
+  4350,
+  4917,
+  5374,
+  6239,
+  7518,
+  8054,
+  8165,
+  8221,
+  8707,
+  9280,
+  9464,
+  9565,
+  9571,
+  9945,
+  10436,
+  11283,
+  11933,
+  12806,
+  13901,
+  14552,
+  14616,
+  15498,
+  15525,
+  16148,
+  16193,
+  17277,
+  18380,
+  18464
+ ],
+ "flip_rate": {
+  "approaches": [
+   "zero_shot",
+   "few_shot"
+  ],
+  "per_class": 10,
+  "repeats": 3,
+  "seed": 20261029
+ },
+ "hosted": {
+  "base_url": "http://dobolyi.com:9001/v1",
+  "extra_body": {
+   "chat_template_kwargs": {
+    "enable_thinking": false
+   }
+  },
+  "max_retries": 3,
+  "max_tokens": 8,
+  "model": "cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit",
+  "retry_backoff_s": 2,
+  "temperature": 0,
+  "timeout_s": 120
+ },
+ "instruction_hash": "2e2b8a8907c54214e087acbd18499095e01065f498dec1c6598c5d39a3ec11ab",
+ "prompt": {
+  "instruction": "Classify the sentiment of the review below as exactly one of: POSITIVE, NEUTRAL, NEGATIVE. Reply with exactly one word, no explanation.",
+  "system": "You are an expert product review analyst. Determine the sentiment each Amazon review expresses."
+ },
+ "small_model": {
+  "adapter_base_id_override": null,
+  "batch_size": 1,
+  "do_sample": false,
+  "expected_adapter_base_id": "unsloth/gemma-3-4b-it-unsloth-bnb-4bit",
+  "expected_revisions": {
+   "unsloth/gemma-3-4b-it": "bf46152c47f5dd20b896357cb51abc4c03b8ee8c",
+   "unsloth/gemma-3-4b-it-unsloth-bnb-4bit": "316726ca0bd24aa323bfaf86e8a379ee1176d1fe"
+  },
+  "instruction_part": "<start_of_turn>user\n",
+  "load_id": "unsloth/gemma-3-4b-it",
+  "load_in_4bit": true,
+  "max_new_tokens": 8,
+  "max_seq_length": 512,
+  "response_part": "<start_of_turn>model\n",
+  "skip_special_tokens": true,
+  "strip_bos_from_text": true
+ },
+ "train": {
+  "bias": "none",
+  "expected_lora_modules": [
+   "q_proj",
+   "k_proj",
+   "v_proj",
+   "o_proj",
+   "gate_proj",
+   "up_proj",
+   "down_proj"
+  ],
+  "finetune_attention_modules": true,
+  "finetune_language_layers": true,
+  "finetune_mlp_modules": true,
+  "finetune_vision_layers": false,
+  "gradient_accumulation_steps": 8,
+  "learning_rate": 0.0002,
+  "lora_alpha": 16,
+  "lora_dropout": 0,
+  "lr_scheduler_type": "linear",
+  "num_train_epochs": 2,
+  "optim": "adamw_8bit",
+  "packing": false,
+  "per_device_train_batch_size": 2,
+  "r": 16,
+  "seed": 3407,
+  "use_gradient_checkpointing": "unsloth",
+  "warmup_steps": 5,
+  "weight_decay": 0.01
+ }
+}

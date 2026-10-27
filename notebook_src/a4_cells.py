@@ -12,8 +12,8 @@
 import importlib.metadata as _md
 import json, math, os, subprocess, sys, time
 
-MODE = "dryrun"  # "dryrun": plumbing on TRAIN rows only, never the test set. "final": the single full run.
-USE_DRIVE = False  # final run: True, to copy artifacts to Google Drive after each long step
+MODE = "final"  # "dryrun": plumbing on TRAIN rows only, never the test set. "final": the single full run.
+USE_DRIVE = True  # final run: True, to copy artifacts to Google Drive after each long step
 
 OUT = "/content/a4_out"
 CACHE_DIR = OUT + "/hosted_cache"
@@ -45,13 +45,17 @@ CONFIG = {
               "learning_rate": 2e-4, "weight_decay": 0.01, "lr_scheduler_type": "linear", "warmup_steps": 5,
               "per_device_train_batch_size": 2, "gradient_accumulation_steps": 8, "num_train_epochs": 2,
               "optim": "adamw_8bit", "seed": 3407, "use_gradient_checkpointing": "unsloth", "packing": False},
+    # DEC-05 (a plus b): hosted flip rate on TRAIN reviews only, separate from the reported results.
+    "flip_rate": {"seed": 20261029, "per_class": 10, "repeats": 3, "approaches": ["zero_shot", "few_shot"]},
 }
 SM = CONFIG["small_model"]
 TR = CONFIG["train"]
-FROZEN_KEYS = ["prompt", "hosted", "fewshot_ids", "small_model", "train"]
+FROZEN_KEYS = ["prompt", "hosted", "fewshot_ids", "small_model", "train", "flip_rate"]
 # Run-specific values are NOT frozen (they differ between dry run and final run).
-RUN = {"mode": MODE, "smoke_max_steps": 10 if MODE == "dryrun" else -1, "workers": 4}
-APPROVED_FREEZE_HASH = None  # set from "FREEZE APPROVED <hash>" in Phase 4; the final run requires it
+# flip_items_per_class: the dry run sends 1 review per class (18 calls) to test plumbing; the final run sends all 30.
+RUN = {"mode": MODE, "smoke_max_steps": 10 if MODE == "dryrun" else -1, "workers": 4,
+       "flip_items_per_class": 1 if MODE == "dryrun" else CONFIG["flip_rate"]["per_class"]}
+APPROVED_FREEZE_HASH = "8a1f06f40c4f3f273bd8149f7b4c25a9c0b20005ae5b5b435ae51be7a0e9e111"  # "FREEZE APPROVED 8a1f06f4", 2026-10-26
 
 PACKAGES = ["torch", "transformers", "peft", "accelerate", "datasets", "trl", "bitsandbytes", "unsloth", "unsloth_zoo",
             "openai", "requests", "scikit-learn", "scipy", "statsmodels", "pandas", "numpy", "matplotlib", "safetensors"]
@@ -162,6 +166,11 @@ else:
 EVAL_IDS = [e["filtered_index"] for e in EVAL_ITEMS]
 print("evaluation items:", len(EVAL_ITEMS), "| mode:", MODE)
 
+FLIP = CONFIG["flip_rate"]
+FLIP_IDS = flip_sample(TRAIN, FEWSHOT_IDS, FLIP["per_class"], FLIP["seed"])
+assert set(FLIP_IDS) <= set(TRAIN_BY_ID) and not set(FLIP_IDS) & (RESERVED_IDS | set(FEWSHOT_IDS))
+print(f"DEC-05 flip sample: {len(FLIP_IDS)} TRAIN ids, none few-shot or reserved, seed {FLIP['seed']}:", FLIP_IDS)
+
 
 def zero_shot_messages(item):
     return build_messages_zero_shot(item["title"], item["text"])
@@ -199,8 +208,8 @@ print("C-15 PASS: every built prompt is a function of title and text only; evalu
 
 # %% [S3] FREEZE CHECK
 CANONICAL_PROMPTS = canonical_prompt_fingerprint(FEWSHOT)  # rendered prompts and parser table: helper drift changes the hash
-FROZEN_HASH = frozen_hash(dict(CONFIG, instruction_hash=INSTRUCTION_HASH, canonical_prompts=CANONICAL_PROMPTS),
-                          FROZEN_KEYS + ["instruction_hash", "canonical_prompts"])
+FROZEN_HASH = frozen_hash(dict(CONFIG, instruction_hash=INSTRUCTION_HASH, canonical_prompts=CANONICAL_PROMPTS, flip_ids=FLIP_IDS),
+                          FROZEN_KEYS + ["instruction_hash", "canonical_prompts", "flip_ids"])
 print("frozen config hash:", FROZEN_HASH)
 if MODE == "final":
     assert APPROVED_FREEZE_HASH and len(APPROVED_FREEZE_HASH) >= 8 and FROZEN_HASH.startswith(APPROVED_FREEZE_HASH), "C-26: hash differs from the approved hash"
@@ -244,6 +253,47 @@ def run_hosted(approach, build):
 
 HOSTED_ZERO, HOSTED_ZERO_COST = run_hosted("zero_shot", zero_shot_messages)
 HOSTED_FEW, HOSTED_FEW_COST = run_hosted("few_shot", few_shot_messages)
+
+# %% [S4b] DEC-05 hosted flip rate on TRAIN prompts (separate measurement; not used for any prediction or setting)
+# Each prompt is sent 3 times, back to back, so this measures short-term repeatability within one run, not the
+# variation between separate runs. Each repeat has its own cache folder (separate requests); the folder name includes
+# MODE so dry-run answers are never reused in the final run. A restart resumes from saved answers instead of re-rolling;
+# prompts whose repeats came from different kernel sessions are listed as mixed_session_ids.
+# No evaluation labels are read here (TRAIN labels only pick the dry-run subset); correctness is not measured.
+FLIP_BUILDERS = {"zero_shot": zero_shot_messages, "few_shot": few_shot_messages}
+_flip_run = []
+for _c in LABELS:
+    _flip_run += [i for i in FLIP_IDS if TRAIN_BY_ID[i]["reference_label"] == _c][:RUN["flip_items_per_class"]]
+FLIP_RUN_IDS = sorted(_flip_run)
+del _flip_run
+if MODE == "final":
+    assert FLIP_RUN_IDS == FLIP_IDS, "final run must send the whole frozen flip sample"
+FLIP_ITEMS = {i: {"title": TRAIN_BY_ID[i]["title"], "text": TRAIN_BY_ID[i]["text"]} for i in FLIP_RUN_IDS}
+
+
+def _flip_one(job):
+    approach, i = job
+    recs = repeat_hosted(FLIP_BUILDERS[approach](FLIP_ITEMS[i]), HOSTED, API_KEY, f"{CACHE_DIR}/flip_{MODE}_{approach}",
+                         FROZEN_HASH, FLIP["repeats"])
+    return [{"approach": approach, "filtered_index": i, "repeat": k + 1, "raw_response": r["content"],
+             "prediction": r["prediction"], "finish_reason": r["finish_reason"], "violations": r["violations"],
+             "latency_s": r["latency_s"], "from_cache": r["from_cache"], "session_id": r["session_id"],
+             "created_utc": r["created_utc"]} for k, r in enumerate(recs)]
+
+
+_t0 = time.perf_counter()
+with ThreadPoolExecutor(max_workers=RUN["workers"]) as ex:
+    _flip_raw = [r for rs in ex.map(_flip_one, [(a, i) for a in FLIP["approaches"] for i in FLIP_RUN_IDS]) for r in rs]
+print(f"S4b wall {time.perf_counter() - _t0:.1f}s (cache reads included)")
+FLIP_PATH = OUT + "/hosted_flip_rate_raw.jsonl"
+with open(FLIP_PATH, "w", encoding="utf-8") as f:
+    for r in _flip_raw:
+        f.write(json.dumps(r, ensure_ascii=False) + "\n")
+persist(FLIP_PATH)
+for _a, _v in flip_summary(_flip_raw, FLIP["approaches"]).items():
+    print(f"{_a}: {_v['items']} TRAIN prompts x {_v['repeats']} calls | label flips {_v['label_flips']} ids {_v['label_flip_ids']} | "
+          f"raw-text flips {_v['raw_flips']} | INVALID responses {_v['invalid_responses']} | calls with violations "
+          f"{_v['calls_with_violations']} | cache hits {_v['cache_hits']} | mixed-session prompts {_v['mixed_session_ids']}")
 
 # %% [S5a] Fine-tuning: install Unsloth stack (recipe from the Unsloth Colab notebook, versions recorded below)
 def sh(cmd):
@@ -648,6 +698,23 @@ COST = {"hosted_zero_shot": HOSTED_ZERO_COST, "hosted_few_shot": HOSTED_FEW_COST
                        "inference_seconds": FT_INFER_SECONDS, "adapter_zip_bytes": TRAIN_META["adapter_zip_bytes"]}}
 print(json.dumps(COST, indent=1, default=str))
 
+# %% [S8e] RESULTS: optional star-word title breakdown (descriptive only, approved in the G0 batch, never used to tune)
+# Star-word title rule: the Phase 2 regex STAR_TITLE (for example "Five Stars", "Great 5 stars"). INVALID counts as wrong.
+# The reference-label mix differs between the two groups, so the within-class table is the like-for-like comparison.
+TITLE_BY_ID = {e["filtered_index"]: e["title"] for e in EVAL_ITEMS}
+STAR_TITLES = star_title_breakdown(REF_BY_ID, TITLE_BY_ID, PREDS)
+print(f"star-word titles: {STAR_TITLES['n_star']} of {STAR_TITLES['n_star'] + STAR_TITLES['n_rest']} | reference labels "
+      f"{STAR_TITLES['star_label_mix']} (other titles {STAR_TITLES['rest_label_mix']})")
+_fmt = lambda x: "n/a" if x is None else f"{x:.4f}"
+print(pd.DataFrame([{"approach": n, "star_title_correct": v["star_correct"], "star_title_accuracy": _fmt(v["star_accuracy"]),
+                     "other_correct": v["rest_correct"], "other_accuracy": _fmt(v["rest_accuracy"])}
+                    for n, v in STAR_TITLES["by_approach"].items()]).to_string(index=False))
+print("\nwithin each reference class (recall = correct / reviews of that class in the group):")
+print(pd.DataFrame([{"approach": n, "class": c, "star_n": d["star_n"], "star_correct": d["star_correct"],
+                     "star_recall": _fmt(d["star_recall"]), "other_n": d["rest_n"], "other_correct": d["rest_correct"],
+                     "other_recall": _fmt(d["rest_recall"])}
+                    for n, v in STAR_TITLES["by_approach"].items() for c, d in v["per_class"].items()]).to_string(index=False))
+
 # %% [S9] Artifact consistency (C-19 to C-22): recompute from the saved files and compare with what was displayed
 _re = read_predictions(PRED_PATH)
 check_predictions_records(_re, EVAL_IDS)
@@ -673,6 +740,11 @@ FACTS = {
     "template_matches_hub": TRAIN_META["template_matches_hub"], "adapter_base_model_name_or_path": ADAPTER_CONFIG.get("base_model_name_or_path"),
     "metrics": {n: {"balanced_accuracy": m["balanced_accuracy"], "macro_f1": m["macro_f1"], "invalid": m["invalid"]} for n, m in METRICS.items()},
     "mcnemar": {k: {"b": v["b"], "c": v["c"], "p": v["p"]} for k, v in MCNEMAR.items()},
+    # rebuilt from the saved file, so a restart before S10 cannot lose it; cost is the sum of per-call latencies
+    "hosted_flip_rate_train": {"design": "3 back-to-back calls per TRAIN prompt in one run (short-term repeatability)",
+                               "seed": FLIP["seed"], "repeats": FLIP["repeats"],
+                               "by_approach": flip_summary(read_jsonl(OUT + "/hosted_flip_rate_raw.jsonl"), FLIP["approaches"])},
+    "star_word_titles": {k: STAR_TITLES[k] for k in ("n_star", "n_rest", "star_label_mix", "rest_label_mix", "by_approach")},
 }
 print(json.dumps(FACTS, indent=1, default=str))
 with open(OUT + "/report_facts.json", "w") as f:

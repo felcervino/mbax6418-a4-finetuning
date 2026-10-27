@@ -190,3 +190,23 @@ PLAN 8.4 says all four files come from one final top-to-bottom run, while Phase 
 
 ### Hosted-run policy (Felipe, 2026-10-26): final run only
 Answer to the open question above: option recommended. The hosted calls are made once, inside the final top-to-bottom run (Phase 6), with the cache on Drive. Phase 5 is not run as a separate hosted run. The DEC-05 flip-rate cell stays a separately labelled cell.
+
+### Title-leakage and DEC-05 flip-rate cell design (Felipe, 2026-10-26, answers in one batch, all recommended options)
+- Star-word rule: reuse the Phase 2 regex STAR_TITLE from tools/phase2_shortlist.py (optional one word, then a digit or one..five, then star or stars, case-insensitive, anchored at the start of the title).
+- Title-leakage output: count of star-title test reviews, their reference-label mix, and accuracy per approach on the star-title subset and on the remaining reviews. Descriptive only, computed in S8 from saved files, never used to tune.
+- Flip rate: both hosted prompts (zero-shot and few-shot), 30 TRAIN reviews x 3 calls each, 180 extra hosted calls, made only in the final run (hosted-run policy) in a separately labelled cell that bypasses the reported-run cache.
+- Flip sample: TRAIN rows only, the 6 few-shot ids excluded, 10 per class, drawn with random.Random(20261029). Seed and ids go into the frozen config.
+
+### Pre-freeze red-team re-audit of the two analysis cells (2026-10-26, red-team agent, Opus; summarized, not saved verbatim)
+- No P0. No path from val or test labels into prompts, training records, the flip measurement or the frozen config.
+- P1-1 dry-run flip answers could be reused by the final run (same FROZEN_HASH in both modes, Drive cache): FIXED, flip cache folder is now flip_<MODE>_<approach>; cache hits are reported. Correction to the design entry above: the dry run does send 18 plumbing flip calls on TRAIN (1 per class x 3 repeats x 2 prompts); the reported flip rate comes only from the final run.
+- P1-2 a crash mid-item could mix answers from two kernel sessions: FIXED, every hosted call now stores session_id and created_utc (kept in the cache), and the result lists mixed_session_ids.
+- P1-3 S10 needed in-memory flip values (NameError after a restart; wall time near 0 on cache reads): FIXED, S10 rebuilds the flip result from hosted_flip_rate_raw.jsonl with helper flip_summary; cost is the sum of per-call latencies.
+- P1-4 the local freeze hash was never compared with a Colab S3 hash: OPEN, needs a Colab dry run (S0 to S3 at least). Local candidate: 8a1f06f4.
+- P1-5 star-title accuracy vs rest mixes the title effect with the class mix: FIXED in code by ADDING a within-class table (recall per reference class, star titles vs other titles) to the approved subset-vs-rest output, and renaming the section and helper to neutral names (star_title_breakdown, report key star_word_titles). This goes beyond Felipe's approved design (addition only, descriptive). PLAN.md line 107 says "Flag in the report that such titles leak the rating"; red-team calls that a pre-stated conclusion. PLAN is Felipe's file, left unchanged; his call.
+- P2 fixed: final run asserts FLIP_RUN_IDS == FLIP_IDS; S4b header now says "not used for any prediction or setting"; flip_rate handles an empty set. P2 noted for the report: the 3 repeats are back to back in one run, so they measure short-term repeatability, not run-to-run variation (stated in report_facts "design").
+- P1-4 CLOSED (2026-10-26 19:31): Colab S3 FROZEN_HASH on a fresh T4 runtime = 8a1f06f40c4f3f273bd8149f7b4c25a9c0b20005ae5b5b435ae51be7a0e9e111, identical to tools/freeze.py (evidence/phase3_dryrun_summary.md, pre-freeze dry run section).
+
+### FREEZE (Phase 4, Gate G4)
+- Felipe replied "FREEZE APPROVED 8a1f06f4" (2026-10-26). Full hash 8a1f06f40c4f3f273bd8149f7b4c25a9c0b20005ae5b5b435ae51be7a0e9e111 (frozen_config.json, frozen_config.sha256), equal in Colab S3 and tools/freeze.py. From here PLAN 8.3 applies: any change to prompts, few-shot ids, model ids, token limits or settings needs Felipe's approval, an entry here, a statement that no test result motivated it, and a full rerun. No test result has been seen.
+- Still open at freeze (not part of the hash): keep or drop the within-class star-title table (P1-5); PLAN.md line 107 wording.
