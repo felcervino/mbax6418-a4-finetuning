@@ -210,3 +210,4 @@ Answer to the open question above: option recommended. The hosted calls are made
 ### FREEZE (Phase 4, Gate G4)
 - Felipe replied "FREEZE APPROVED 8a1f06f4" (2026-10-26). Full hash 8a1f06f40c4f3f273bd8149f7b4c25a9c0b20005ae5b5b435ae51be7a0e9e111 (frozen_config.json, frozen_config.sha256), equal in Colab S3 and tools/freeze.py. From here PLAN 8.3 applies: any change to prompts, few-shot ids, model ids, token limits or settings needs Felipe's approval, an entry here, a statement that no test result motivated it, and a full rerun. No test result has been seen.
 - Still open at freeze (not part of the hash): keep or drop the within-class star-title table (P1-5); PLAN.md line 107 wording.
+- Within-class star-title table (P1-5 addition): Felipe 2026-10-26: KEEP. PLAN.md line 107 wording: Felipe decides separately, still open.
