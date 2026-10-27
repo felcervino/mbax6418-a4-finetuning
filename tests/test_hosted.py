@@ -89,3 +89,36 @@ def test_violations_recorded_not_hidden(tmp_path):
     r = h.call_hosted(MSGS, CFG, "K", str(tmp_path), "f", post=fp)
     assert r["prediction"] == "INVALID"
     assert set(r["violations"]) == {"finish_reason:length", "reasoning_present", "reasoning_tokens:8"}
+
+
+def test_cache_write_retries_when_replace_fails_transiently(tmp_path, monkeypatch):
+    """Drive-backed folders can report FileNotFoundError on the tmp-to-final rename (final run, cell S4). The answer is
+    already in memory, so the write is retried and the hosted API is called exactly once."""
+    real = os.replace
+    fails = {"n": 2}
+
+    def flaky(src, dst):
+        if fails["n"] > 0:
+            fails["n"] -= 1
+            raise FileNotFoundError(2, "No such file or directory", src)
+        return real(src, dst)
+
+    monkeypatch.setattr(os, "replace", flaky)
+    fp = FakePost([(200, _resp())])
+    r = h.call_hosted(MSGS, CFG, "KEY", str(tmp_path), "frozen1", post=fp, sleep=lambda s: None)
+    assert r["prediction"] == "POSITIVE" and r["from_cache"] is False
+    assert len(fp.calls) == 1 and fails["n"] == 0
+    r2 = h.call_hosted(MSGS, CFG, "KEY", str(tmp_path), "frozen1", post=FakePost([]), sleep=lambda s: None)
+    assert r2["from_cache"] is True and r2["content"] == "POSITIVE"
+    assert not [f for f in os.listdir(tmp_path) if f.endswith(".tmp")]
+
+
+def test_cache_write_gives_up_loudly_and_never_rerolls(tmp_path, monkeypatch):
+    def always(src, dst):
+        raise FileNotFoundError(2, "No such file or directory", src)
+
+    monkeypatch.setattr(os, "replace", always)
+    fp = FakePost([(200, _resp())])
+    with pytest.raises(FileNotFoundError):
+        h.call_hosted(MSGS, CFG, "KEY", str(tmp_path), "frozen1", post=fp, sleep=lambda s: None)
+    assert len(fp.calls) == 1

@@ -244,8 +244,8 @@ def write_predictions(path, records):
         for r in records:
             if list(r.keys()) != PREDICTION_FIELDS:
                 raise ValueError(f"fields must be exactly {PREDICTION_FIELDS}, got {list(r.keys())}")
-            f.write(json.dumps(r, ensure_ascii=False, separators=(",", ":")).replace(" ", "\\u2028")
-                    .replace(" ", "\\u2029") + "\n")
+            f.write(json.dumps(r, ensure_ascii=False, separators=(",", ":")).replace("\u2028", "\\u2028")
+                    .replace("\u2029", "\\u2029") + "\n")
 
 
 def read_predictions(path):
@@ -315,6 +315,35 @@ def _hosted_body(messages, cfg):
             "max_tokens": cfg["max_tokens"], **cfg.get("extra_body", {})}
 
 
+CACHE_WRITE_ATTEMPTS = 6
+
+
+def _write_cache_file(path, rec, sleep=time.sleep):
+    """Atomic cache write that survives a flaky (Drive-backed) folder.
+
+    The hosted answer is already in memory, so a failed tmp-to-final rename is retried by rewriting the tmp file;
+    the API is never called again for it. After the last attempt the error is raised, never swallowed.
+    """
+    for attempt in range(1, CACHE_WRITE_ATTEMPTS + 1):
+        tmp = f"{path}.{uuid.uuid4().hex[:8]}.tmp"
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(rec, f, ensure_ascii=False)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp, path)
+            return
+        except OSError:
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+            if attempt == CACHE_WRITE_ATTEMPTS:
+                raise
+            sleep(0.5 * attempt)
+
+
 def call_hosted(messages, cfg, api_key, cache_dir, frozen, post=http_post_json, sleep=time.sleep):
     """One hosted chat call. Retries only transport errors and HTTP 5xx; never retries on content.
 
@@ -371,10 +400,7 @@ def call_hosted(messages, cfg, api_key, cache_dir, frozen, post=http_post_json, 
            "finish_reason": choice.get("finish_reason"), "completion_tokens": usage.get("completion_tokens"),
            "violations": violations, "prediction": parse_label(content), "from_cache": False,
            "session_id": SESSION_ID, "created_utc": time.time()}
-    tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(rec, f, ensure_ascii=False)
-    os.replace(tmp, path)
+    _write_cache_file(path, rec, sleep)
     return rec
 
 
