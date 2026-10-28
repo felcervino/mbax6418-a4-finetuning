@@ -1,0 +1,13 @@
+{
+  "150": "DECISIONS.md D-03: shortlist rule 'text 150 to 450 chars'; evidence/phase2_fewshot_shortlist.md",
+  "450": "DECISIONS.md D-03: shortlist rule 'text 150 to 450 chars'; evidence/phase2_fewshot_shortlist.md",
+  "51": "evidence/gate_G7_metrics_audit.md: few_shot confusion row NEUTRAL [14,35,51,0], i.e. 51 neutral reviews predicted NEGATIVE; also the 0.51 cell of confusion_three.png",
+  "23": "evidence/gate_G7_metrics_audit.md: fine_tuned confusion row NEUTRAL [14,63,23,0], i.e. 23 neutral reviews predicted NEGATIVE; also the 0.23 cell of confusion_three.png",
+  "0.06": "derived: fine_tuned balanced accuracy 0.8100 minus zero_shot and few_shot 0.7467 is 0.0633 (evidence/final_run/report_facts.json metrics)",
+  "8912896": "DECISIONS.md DEC-11: Phi-4-mini smoke run on Colab, trainable parameters 8,912,896 (= 32 x (98,304 + 180,224)); not part of the final run",
+  "13547": "frozen_config.json fewshot_ids; DECISIONS.md D-03 (rating 4, text describes a confusing reload)",
+  "9272": "frozen_config.json fewshot_ids; DECISIONS.md D-03 (rating 1, neutral-sounding inquiry)",
+  "0.26": "evidence/star_title_sensitivity.txt: without star-word titles, zero_shot vs fine_tuned p=0.2559 (b=15, c=23); post-hoc, descriptive",
+  "0.09": "evidence/star_title_sensitivity.txt: without star-word titles, few_shot vs fine_tuned p=0.0895 (b=12, c=23); post-hoc, descriptive",
+  "0.063": "derived: fine_tuned balanced accuracy 0.8100 minus zero_shot and few_shot 0.7467 is 0.0633 (evidence/final_run/report_facts.json metrics)"
+}

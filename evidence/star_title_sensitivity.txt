@@ -1,0 +1,16 @@
+Exact two-sided McNemar by subgroup (b = first-named correct and second wrong, c = reverse). Descriptive only.
+
+all 300: n=300, reference mix {'POSITIVE': 100, 'NEUTRAL': 100, 'NEGATIVE': 100}
+  zero_shot vs few_shot: b=6 c=6 p=1.0000   correct zero_shot 224, few_shot 224
+  zero_shot vs fine_tuned: b=15 c=34 p=0.0094   correct zero_shot 224, fine_tuned 243
+  few_shot vs fine_tuned: b=12 c=31 p=0.0054   correct few_shot 224, fine_tuned 243
+
+without star-word titles: n=250, reference mix {'POSITIVE': 71, 'NEUTRAL': 82, 'NEGATIVE': 97}
+  zero_shot vs few_shot: b=6 c=3 p=0.5078   correct zero_shot 185, few_shot 182
+  zero_shot vs fine_tuned: b=15 c=23 p=0.2559   correct zero_shot 185, fine_tuned 193
+  few_shot vs fine_tuned: b=12 c=23 p=0.0895   correct few_shot 182, fine_tuned 193
+
+star-word titles only: n=50, reference mix {'POSITIVE': 29, 'NEUTRAL': 18, 'NEGATIVE': 3}
+  zero_shot vs few_shot: b=0 c=3 p=0.2500   correct zero_shot 39, few_shot 42
+  zero_shot vs fine_tuned: b=0 c=11 p=0.0010   correct zero_shot 39, fine_tuned 50
+  few_shot vs fine_tuned: b=0 c=8 p=0.0078   correct few_shot 42, fine_tuned 50
