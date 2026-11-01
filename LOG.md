@@ -162,3 +162,7 @@
 - Report trimmed at Felipe's choice (option 2): about 1,226 to 971 words including the table and the DRAFT line, all red-team facts kept; verify_submission all PASS (C-22: 134 numbers, 10 manually sourced), scan_secrets 0 hits. Going below about 900 words would drop required facts (models, settings, errors, statistics, limits, cost, decision). Gap and DRAFT line remain for Felipe. Nothing committed since 191d8d0.
 
 - 2026-10-27 Phase 8: Felipe made no edits and said "you save it". Assistant replaced the DRAFT line with an authorship note and filled the topic-5 gap from the record (D-05 re-decided; no new reasoning invented). verify_submission all PASS (138 numbers), scan_secrets 0 hits, final_deliverables/ refreshed from submission/. Not committed.
+
+- 2026-10-27 GATE G8: GO G8 received from Felipe. Commit ac813c4 holds Phase 8 work. Checks: verify_submission all PASS, scan_secrets 0 hits. Open notes: R-16 UNVERIFIED, exact-key scan skipped (CLASS_API_KEY not set locally), helper code not covered by freeze hash. Next: Felipe submits on Canvas; no push.
+
+- 2026-11-01 Phase 8 follow-up: after the assignment cross-check, the assistant rewrote the report cell in plainer language (893 words, added "S10 Report" heading, clearer base-model note). verify_submission all PASS (123 numbers), scan_secrets 0 hits, final_deliverables/ refreshed. Not committed.
