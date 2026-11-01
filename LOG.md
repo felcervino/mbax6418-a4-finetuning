@@ -172,3 +172,7 @@
 - 2026-11-01 DEC-17: adapter base id left unchanged; added a base-model note (markdown) to the inference-example section. verify_submission and scan re-run.
 
 - 2026-11-01 DEC-18: markdown-only fixes after the Opus red-team (report now 1,025 words). verify all PASS (125 numbers), scan 0 hits, final_deliverables refreshed.
+
+- 2026-11-01 DEC-19: report interpretation rewritten from Felipe's seven answers. verify all PASS, scan 0 hits, final_deliverables refreshed. Not committed.
+
+- 2026-11-01 Report trimmed (word count in the final line below). verify all PASS, scan 0 hits.
