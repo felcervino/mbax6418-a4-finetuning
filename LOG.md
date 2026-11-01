@@ -166,3 +166,5 @@
 - 2026-10-27 GATE G8: GO G8 received from Felipe. Commit ac813c4 holds Phase 8 work. Checks: verify_submission all PASS, scan_secrets 0 hits. Open notes: R-16 UNVERIFIED, exact-key scan skipped (CLASS_API_KEY not set locally), helper code not covered by freeze hash. Next: Felipe submits on Canvas; no push.
 
 - 2026-11-01 Phase 8 follow-up: after the assignment cross-check, the assistant rewrote the report cell in plainer language (893 words, added "S10 Report" heading, clearer base-model note). verify_submission all PASS (123 numbers), scan_secrets 0 hits, final_deliverables/ refreshed. Not committed.
+
+- 2026-11-01 Repo: private GitHub repo felcervino/mbax6418-a4-finetuning created; *.zip moved to Git LFS (history rewritten before first push); commit author/committer emails rewritten to the GitHub noreply address (GH007 email privacy); pushed main. Old commit hashes in earlier evidence files (for example 191d8d0) no longer exist.
