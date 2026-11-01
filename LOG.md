@@ -170,3 +170,5 @@
 - 2026-11-01 Repo: private GitHub repo felcervino/mbax6418-a4-finetuning created; *.zip moved to Git LFS (history rewritten before first push); commit author/committer emails rewritten to the GitHub noreply address (GH007 email privacy); pushed main. Old commit hashes in earlier evidence files (for example 191d8d0) no longer exist.
 
 - 2026-11-01 DEC-17: adapter base id left unchanged; added a base-model note (markdown) to the inference-example section. verify_submission and scan re-run.
+
+- 2026-11-01 DEC-18: markdown-only fixes after the Opus red-team (report now 1,025 words). verify all PASS (125 numbers), scan 0 hits, final_deliverables refreshed.
