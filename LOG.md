@@ -176,3 +176,5 @@
 - 2026-11-01 DEC-19: report interpretation rewritten from Felipe's seven answers. verify all PASS, scan 0 hits, final_deliverables refreshed. Not committed.
 
 - 2026-11-01 Report trimmed (word count in the final line below). verify all PASS, scan 0 hits.
+
+- 2026-11-01 Report trimmed again (cut noisy-example detail, agent reasoning detail, cached-answers sentence; split statistics and limits). verify all PASS, scan 0 hits.

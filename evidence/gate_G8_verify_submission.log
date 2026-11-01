@@ -4,4 +4,4 @@ C-19: PASS | 300 rows, fields ['original_row', 'filtered_index', 'title', 'text'
 C-20: PASS | ids 30000, 30008, 30005
 C-24: PASS | 21 code cells executed in order, 0 error outputs
 C-21f: PASS | fine-tuned metrics from the file equal report_facts.json
-C-22: PASS | report cell checked, 120 numbers found, none unmatched; 10 manually sourced (0.063, 0.09, 0.26, 13547, 150, 23, 450, 51, 8912896, 9272)
+C-22: PASS | report cell checked, 115 numbers found, none unmatched; 9 manually sourced (0.063, 0.09, 0.26, 13547, 150, 23, 450, 51, 9272)
