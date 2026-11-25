@@ -178,3 +178,5 @@
 - 2026-11-01 Report trimmed (word count in the final line below). verify all PASS, scan 0 hits.
 
 - 2026-11-01 Report trimmed again (cut noisy-example detail, agent reasoning detail, cached-answers sentence; split statistics and limits). verify all PASS, scan 0 hits.
+
+- 2026-11-01 SUBMITTED: Felipe submitted the four files from final_deliverables/ on Canvas. Repo felcervino/mbax6418-a4-finetuning made public after scrubbing the class key and docs/ from history (force-push, hashes changed). 2026-11-24: added README.md (incl. note that older commit hashes in evidence/ and this log no longer exist) and a memory note. verify_submission unchanged, scan_secrets re-run.
